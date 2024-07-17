@@ -56,6 +56,10 @@ add_subdirectory(vendor/glm)
 list(APPEND GLITTER_SOURCES
     # glitter
     src/main.cpp
+
+    # glitter utility
+    src/glitter/util/File.cpp
+    src/glitter/util/File.h
 	
 	# glad
     vendor/glad/src/glad.c
