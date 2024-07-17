@@ -199,30 +199,28 @@ private:
             {.x = -0.5f, .y = +0.5f, .z = +0.5f, .u = +0.0f, .v = +0.0f},
             {.x = -0.5f, .y = +0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f}};
 
-        // Create VAO and VBO.
-        GLuint VAO, VBO;
-        glGenVertexArrays(1, &VAO);
-        glGenBuffers(1, &VBO);
+        // Create VAO.
+        GLuint VAO;
+        glCreateVertexArrays(1, &VAO);
+
+        // Create VBO.
+        GLuint VBO;
+        glCreateBuffers(1, &VBO);
+        glNamedBufferStorage(
+            VBO, sizeof(MeshAttribute) * 36, &cube, 0);
 
         // Configure the VAO and VBO.
-        glBindVertexArray(VAO);
-
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(cube), cube, GL_STATIC_DRAW);
+        glVertexArrayVertexBuffer(VAO, 0, VBO, 0, sizeof(MeshAttribute));
 
         // Declare the Position Attribute.
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(MeshAttribute),
-            reinterpret_cast<void*>(offsetof(MeshAttribute, x)));
-        glEnableVertexAttribArray(0);
+        glEnableVertexArrayAttrib(VAO, 0);
+        glVertexArrayAttribFormat(
+            VAO, 0, 3, GL_FLOAT, GL_FALSE, offsetof(MeshAttribute, x));
 
         // Declare the UV Attribute.
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(MeshAttribute),
-            reinterpret_cast<void*>(offsetof(MeshAttribute, u)));
-        glEnableVertexAttribArray(1);
-
-        // Unbind VAO and VBO.
-        glBindVertexArray(0);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glEnableVertexArrayAttrib(VAO, 1);
+        glVertexArrayAttribFormat(
+            VAO, 1, 2, GL_FLOAT, GL_FALSE, offsetof(MeshAttribute, u));
 
         m_currentVAO = VAO;
 
