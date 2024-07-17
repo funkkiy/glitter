@@ -20,11 +20,13 @@ public:
         spdlog::info("Started Glitter.");
 
         if (Initialize() != InitializeResult::Ok) {
+            spdlog::error("Initialize() failed!");
             Finish();
             return;
         }
 
         if (Prepare() != PrepareResult::Ok) {
+            spdlog::error("Prepare() failed!");
             Finish();
             return;
         }
@@ -104,10 +106,10 @@ private:
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glEnable(GL_DEPTH_TEST);
 
-        // Create the Vertex and Fragment shaders
+        // Create the Vertex and Fragment shaders.
         GLint shadersOk = true;
 
-        // Vertex Shader
+        // Vertex Shader.
         std::optional<std::string> vertexSrc
             = Glitter::Util::ReadFile("shaders/VertexShader.glsl");
         if (!vertexSrc) {
@@ -122,7 +124,7 @@ private:
             return PrepareResult::ShaderCompileError;
         }
 
-        // Fragment Shader
+        // Fragment Shader.
         std::optional<std::string> fragmentSrc
             = Glitter::Util::ReadFile("shaders/FragShader.glsl");
         if (!fragmentSrc) {
@@ -137,17 +139,17 @@ private:
             return PrepareResult::ShaderCompileError;
         }
 
-        // Link the shaders into a Program
+        // Link the shaders into a Program.
         GLuint shaderProgram = glCreateProgram();
         glAttachShader(shaderProgram, vertexShader);
         glAttachShader(shaderProgram, fragmentShader);
         glLinkProgram(shaderProgram);
 
-        // The shaders are not necessary after being linked into a Program
+        // The shaders can be safely deleted after being linked into a Program.
         glDeleteShader(vertexShader);
         glDeleteShader(fragmentShader);
 
-        // Check if the Program was linked successfully
+        // Check if the Program was linked successfully.
         glGetProgramiv(shaderProgram, GL_LINK_STATUS, &shadersOk);
         if (!shadersOk) {
             return PrepareResult::ProgramLinkError;
@@ -197,28 +199,28 @@ private:
             {.x = -0.5f, .y = +0.5f, .z = +0.5f, .u = +0.0f, .v = +0.0f},
             {.x = -0.5f, .y = +0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f}};
 
-        // Create VAO and VBO
+        // Create VAO and VBO.
         GLuint VAO, VBO;
         glGenVertexArrays(1, &VAO);
         glGenBuffers(1, &VBO);
 
-        // Configure the VAO and VBO
+        // Configure the VAO and VBO.
         glBindVertexArray(VAO);
 
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
         glBufferData(GL_ARRAY_BUFFER, sizeof(cube), cube, GL_STATIC_DRAW);
 
-        // Declare the Position Attribute
+        // Declare the Position Attribute.
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(MeshAttribute),
             reinterpret_cast<void*>(offsetof(MeshAttribute, x)));
         glEnableVertexAttribArray(0);
 
-        // Declare the UV Attribute
+        // Declare the UV Attribute.
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(MeshAttribute),
             reinterpret_cast<void*>(offsetof(MeshAttribute, u)));
         glEnableVertexAttribArray(1);
 
-        // Unbind VAO and VBO
+        // Unbind VAO and VBO.
         glBindVertexArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
@@ -231,20 +233,31 @@ private:
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Pass MVP into the Vertex Shader
+        // Pass MVP into the Vertex Shader.
         GLint modelIdx = glGetUniformLocation(m_currentProgram, "uModel");
+        GLint viewIdx = glGetUniformLocation(m_currentProgram, "uView");
+        GLint projectionIdx = glGetUniformLocation(m_currentProgram, "uProjection");
 
-        // The Model has to follow the Scale-Rotate-Translate order
+        // The Model has to follow the Scale-Rotate-Translate order.
         glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.5f, -0.5f, 0.0f));
+        model = glm::scale(model, glm::vec3(0.5f));
         model = glm::rotate(
-            model, (float)glfwGetTime(), glm::vec3(0.0f, 0.45f, 1.0f));
+            model, static_cast<float>(glfwGetTime()), glm::vec3(0.0f, 0.5f, 0.0f));
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
+
+        // Calculate View and Projection.
+        glm::mat4 view = glm::lookAt(
+            glm::vec3(0.0f, 0.5f, -1.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 projection = glm::perspective(
+            glm::radians(45.0f), 640.f / 480.0f, 0.1f, 100.0f);
 
         glUseProgram(m_currentProgram);
         glBindVertexArray(m_currentVAO);
 
         // Uniforms must be set after a program is bound.
         glUniformMatrix4fv(modelIdx, 1, GL_FALSE, glm::value_ptr(model));
+        glUniformMatrix4fv(viewIdx, 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(projectionIdx, 1, GL_FALSE, glm::value_ptr(projection));
 
         // Draw!
         glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -253,7 +266,11 @@ private:
         glfwPollEvents();
     }
 
-    void Finish() { glfwTerminate(); }
+    void Finish()
+    {
+        spdlog::info("Stopping...");
+        glfwTerminate();
+    }
 
     GLFWwindow* m_window {};
     GLuint m_currentProgram {};
