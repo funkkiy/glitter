@@ -22,6 +22,7 @@ public:
             Render();
         }
 
+        Finish();
         return;
     }
 
