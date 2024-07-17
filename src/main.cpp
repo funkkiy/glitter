@@ -76,7 +76,6 @@ private:
 
     void Finish() { glfwTerminate(); }
 
-private:
     GLFWwindow* m_window {};
 };
 
