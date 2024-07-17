@@ -206,7 +206,8 @@ private:
         // Create VBO.
         GLuint VBO;
         glCreateBuffers(1, &VBO);
-        glNamedBufferStorage(VBO, sizeof(MeshAttribute) * 36, &cube, 0);
+        glNamedBufferStorage(
+            VBO, sizeof(MeshAttribute) * std::size(cube), &cube, 0);
 
         // Attach the VBO to the VAO.
         glVertexArrayVertexBuffer(VAO, 0, VBO, 0, sizeof(MeshAttribute));
