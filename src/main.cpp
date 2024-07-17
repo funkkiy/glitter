@@ -247,16 +247,18 @@ private:
 
         // The Model has to follow the Scale-Rotate-Translate order.
         glm::mat4 model = glm::mat4(1.0f);
-        model = glm::scale(model, glm::vec3(0.5f));
+        model = glm::scale(model, glm::vec3(std::sin(glfwGetTime())));
         model = glm::rotate(model, static_cast<float>(glfwGetTime()),
             glm::vec3(0.0f, 0.5f, 0.0f));
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
+        model = glm::translate(
+            model, glm::vec3(0.0f, std::sin(glfwGetTime()), 0.0f));
 
         // Calculate View and Projection.
-        glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.5f, -1.5f),
+        glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 2.5f, -3.5f),
             glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        glm::mat4 projection = glm::perspective(
-            glm::radians(45.0f), 640.f / 480.0f, 0.1f, 100.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(45.0f),
+            static_cast<float>(m_windowWidth) / static_cast<float>(m_windowHeight), 0.1f,
+            100.0f);
 
         // Pass MVP into the Vertex Shader.
         GLint modelIdx = glGetUniformLocation(m_currentProgram, "uModel");
@@ -285,10 +287,10 @@ private:
 
         // Configure the information to draw the second cube.
         glm::mat4 secondModel = glm::mat4(1.0f);
-        secondModel = glm::scale(secondModel, glm::vec3(0.5f));
+        secondModel = glm::scale(model, glm::vec3(std::cos(glfwGetTime())));
         secondModel = glm::rotate(secondModel,
             static_cast<float>(glfwGetTime()), glm::vec3(0.0f, -0.5f, 0.0f));
-        secondModel = glm::translate(secondModel, glm::vec3(-2.0f, 0.0f, 0.0f));
+        secondModel = glm::translate(secondModel, glm::vec3(-3.0f, 0.0f, 0.0f));
         glProgramUniformMatrix4fv(
             m_currentProgram, modelIdx, 1, GL_FALSE, glm::value_ptr(secondModel));
 
