@@ -13,6 +13,8 @@
 #include <optional>
 #include <print>
 
+#include <cstdint>
+
 class GlitterApplication {
 public:
     void Run()
@@ -58,11 +60,23 @@ private:
 #ifdef _DEBUG
         glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
 #endif
-        m_window = glfwCreateWindow(640, 480, "Glitter", nullptr, nullptr);
+        m_window = glfwCreateWindow(m_windowWidth, m_windowHeight, "Glitter", nullptr, nullptr);
         if (!m_window) {
             return InitializeResult::GlfwWindowError;
         }
         glfwMakeContextCurrent(m_window);
+
+        // Resize the Viewport if the Window size changes.
+        glfwSetWindowUserPointer(m_window, this);
+        glfwSetWindowSizeCallback(
+            m_window, [](GLFWwindow* window, int width, int height) {
+                auto app = static_cast<GlitterApplication*>(
+                    glfwGetWindowUserPointer(window));
+                app->m_windowWidth = width;
+                app->m_windowHeight = height;
+                glViewport(0, 0, width, height);
+            });
+
 
         if (!gladLoadGLLoader(
                 reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
@@ -298,6 +312,9 @@ private:
     GLFWwindow* m_window {};
     GLuint m_currentProgram {};
     GLuint m_currentVAO {};
+
+    uint32_t m_windowWidth {640};
+    uint32_t m_windowHeight {480};
 };
 
 int main()
