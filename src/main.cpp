@@ -13,7 +13,10 @@
 #include <optional>
 #include <print>
 
+#include <cmath>
 #include <cstdint>
+#include <cstdlib>
+#include <ctime>
 
 class GlitterApplication {
 public:
@@ -60,7 +63,8 @@ private:
 #ifdef _DEBUG
         glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
 #endif
-        m_window = glfwCreateWindow(m_windowWidth, m_windowHeight, "Glitter", nullptr, nullptr);
+        m_window = glfwCreateWindow(
+            m_windowWidth, m_windowHeight, "Glitter", nullptr, nullptr);
         if (!m_window) {
             return InitializeResult::GlfwWindowError;
         }
@@ -76,7 +80,6 @@ private:
                 app->m_windowHeight = height;
                 glViewport(0, 0, width, height);
             });
-
 
         if (!gladLoadGLLoader(
                 reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
@@ -238,6 +241,12 @@ private:
 
         m_currentVAO = VAO;
 
+        // Seed the RNG.
+        std::srand(std::time(0));
+
+        // Determine how many Cubes should be drawn.
+        m_cubeCount = (std::rand() % 10) + 1;
+
         return PrepareResult::Ok;
     }
 
@@ -245,35 +254,29 @@ private:
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // The Model has to follow the Scale-Rotate-Translate order.
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::scale(model, glm::vec3(std::sin(glfwGetTime())));
-        model = glm::rotate(model, static_cast<float>(glfwGetTime()),
-            glm::vec3(0.0f, 0.5f, 0.0f));
-        model = glm::translate(
-            model, glm::vec3(0.0f, std::sin(glfwGetTime()), 0.0f));
+        // Obtain the location for each Uniform.
+        GLint modelIdx = glGetUniformLocation(m_currentProgram, "uModel");
+        GLint viewIdx = glGetUniformLocation(m_currentProgram, "uView");
+        GLint projectionIdx
+            = glGetUniformLocation(m_currentProgram, "uProjection");
 
         // Calculate View and Projection.
         glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 2.5f, -3.5f),
             glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         glm::mat4 projection = glm::perspective(glm::radians(45.0f),
-            static_cast<float>(m_windowWidth) / static_cast<float>(m_windowHeight), 0.1f,
-            100.0f);
+            static_cast<float>(m_windowWidth)
+                / static_cast<float>(m_windowHeight),
+            0.1f, 100.0f);
 
-        // Pass MVP into the Vertex Shader.
-        GLint modelIdx = glGetUniformLocation(m_currentProgram, "uModel");
-        glProgramUniformMatrix4fv(
-            m_currentProgram, modelIdx, 1, GL_FALSE, glm::value_ptr(model));
-        GLint viewIdx = glGetUniformLocation(m_currentProgram, "uView");
+        // Pass View and Projection into the Vertex Shader.
         glProgramUniformMatrix4fv(
             m_currentProgram, viewIdx, 1, GL_FALSE, glm::value_ptr(view));
-        GLint projectionIdx
-            = glGetUniformLocation(m_currentProgram, "uProjection");
         glProgramUniformMatrix4fv(m_currentProgram, projectionIdx, 1, GL_FALSE,
             glm::value_ptr(projection));
 
         // Pass other Uniforms into the Vertex Shader.
-        GLint objectColorIdx = glGetUniformLocation(m_currentProgram, "uObjectColor");
+        GLint objectColorIdx
+            = glGetUniformLocation(m_currentProgram, "uObjectColor");
         glm::vec3 firstCubeColor {1.0f, 0.0f, 0.5f};
         glProgramUniform3fv(m_currentProgram, objectColorIdx, 1,
             glm::value_ptr(firstCubeColor));
@@ -282,24 +285,25 @@ private:
         glUseProgram(m_currentProgram);
         glBindVertexArray(m_currentVAO);
 
-        // Draw the first cube!
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        // Render each Cube.
+        for (int i = 0; i < m_cubeCount; i++) {
+            // The Model has to follow the Scale-Rotate-Translate order.
+            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::scale(model, glm::vec3(0.5f));
 
-        // Configure the information to draw the second cube.
-        glm::mat4 secondModel = glm::mat4(1.0f);
-        secondModel = glm::scale(model, glm::vec3(std::cos(glfwGetTime())));
-        secondModel = glm::rotate(secondModel,
-            static_cast<float>(glfwGetTime()), glm::vec3(0.0f, -0.5f, 0.0f));
-        secondModel = glm::translate(secondModel, glm::vec3(-3.0f, 0.0f, 0.0f));
-        glProgramUniformMatrix4fv(
-            m_currentProgram, modelIdx, 1, GL_FALSE, glm::value_ptr(secondModel));
+            if (i < 5) {
+                model = glm::translate(model, glm::vec3(-2.75f + (1.5f * i), 0.0f, 0.0f));
+            } else {
+                model = glm::translate(model, glm::vec3(-2.75f + (1.5f * (i - 5)), 0.0f, -1.5f));
+            }
 
-        glm::vec3 secondCubeColor {1.0f, 0.0f, 0.0f};
-        glProgramUniform3fv(m_currentProgram, objectColorIdx, 1,
-            glm::value_ptr(secondCubeColor));
+            // Pass the Model into the Vertex Shader.
+            glProgramUniformMatrix4fv(
+                m_currentProgram, modelIdx, 1, GL_FALSE, glm::value_ptr(model));
 
-        // Draw the second cube!
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+            // Draw the Cube!
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
 
         glfwSwapBuffers(m_window);
         glfwPollEvents();
@@ -317,6 +321,8 @@ private:
 
     uint32_t m_windowWidth {640};
     uint32_t m_windowHeight {480};
+
+    uint32_t m_cubeCount {};
 };
 
 int main()
