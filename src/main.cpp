@@ -256,10 +256,33 @@ private:
         glProgramUniformMatrix4fv(m_currentProgram, projectionIdx, 1, GL_FALSE,
             glm::value_ptr(projection));
 
+        // Pass other Uniforms into the Vertex Shader.
+        GLint objectColorIdx = glGetUniformLocation(m_currentProgram, "uObjectColor");
+        glm::vec3 firstCubeColor {1.0f, 0.0f, 0.5f};
+        glProgramUniform3fv(m_currentProgram, objectColorIdx, 1,
+            glm::value_ptr(firstCubeColor));
+
+        // Bind the Program and its VAO.
         glUseProgram(m_currentProgram);
         glBindVertexArray(m_currentVAO);
 
-        // Draw!
+        // Draw the first cube!
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        // Configure the information to draw the second cube.
+        glm::mat4 secondModel = glm::mat4(1.0f);
+        secondModel = glm::scale(secondModel, glm::vec3(0.5f));
+        secondModel = glm::rotate(secondModel,
+            static_cast<float>(glfwGetTime()), glm::vec3(0.0f, -0.5f, 0.0f));
+        secondModel = glm::translate(secondModel, glm::vec3(-2.0f, 0.0f, 0.0f));
+        glProgramUniformMatrix4fv(
+            m_currentProgram, modelIdx, 1, GL_FALSE, glm::value_ptr(secondModel));
+
+        glm::vec3 secondCubeColor {1.0f, 0.0f, 0.0f};
+        glProgramUniform3fv(m_currentProgram, objectColorIdx, 1,
+            glm::value_ptr(secondCubeColor));
+
+        // Draw the second cube!
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
         glfwSwapBuffers(m_window);
