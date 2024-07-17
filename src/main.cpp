@@ -206,10 +206,9 @@ private:
         // Create VBO.
         GLuint VBO;
         glCreateBuffers(1, &VBO);
-        glNamedBufferStorage(
-            VBO, sizeof(MeshAttribute) * 36, &cube, 0);
+        glNamedBufferStorage(VBO, sizeof(MeshAttribute) * 36, &cube, 0);
 
-        // Configure the VAO and VBO.
+        // Attach the VBO to the VAO.
         glVertexArrayVertexBuffer(VAO, 0, VBO, 0, sizeof(MeshAttribute));
 
         // Declare the Position Attribute.
@@ -231,31 +230,33 @@ private:
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Pass MVP into the Vertex Shader.
-        GLint modelIdx = glGetUniformLocation(m_currentProgram, "uModel");
-        GLint viewIdx = glGetUniformLocation(m_currentProgram, "uView");
-        GLint projectionIdx = glGetUniformLocation(m_currentProgram, "uProjection");
-
         // The Model has to follow the Scale-Rotate-Translate order.
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::scale(model, glm::vec3(0.5f));
-        model = glm::rotate(
-            model, static_cast<float>(glfwGetTime()), glm::vec3(0.0f, 0.5f, 0.0f));
+        model = glm::rotate(model, static_cast<float>(glfwGetTime()),
+            glm::vec3(0.0f, 0.5f, 0.0f));
         model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
 
         // Calculate View and Projection.
-        glm::mat4 view = glm::lookAt(
-            glm::vec3(0.0f, 0.5f, -1.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.5f, -1.5f),
+            glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         glm::mat4 projection = glm::perspective(
             glm::radians(45.0f), 640.f / 480.0f, 0.1f, 100.0f);
 
+        // Pass MVP into the Vertex Shader.
+        GLint modelIdx = glGetUniformLocation(m_currentProgram, "uModel");
+        glProgramUniformMatrix4fv(
+            m_currentProgram, modelIdx, 1, GL_FALSE, glm::value_ptr(model));
+        GLint viewIdx = glGetUniformLocation(m_currentProgram, "uView");
+        glProgramUniformMatrix4fv(
+            m_currentProgram, viewIdx, 1, GL_FALSE, glm::value_ptr(view));
+        GLint projectionIdx
+            = glGetUniformLocation(m_currentProgram, "uProjection");
+        glProgramUniformMatrix4fv(m_currentProgram, projectionIdx, 1, GL_FALSE,
+            glm::value_ptr(projection));
+
         glUseProgram(m_currentProgram);
         glBindVertexArray(m_currentVAO);
-
-        // Uniforms must be set after a program is bound.
-        glUniformMatrix4fv(modelIdx, 1, GL_FALSE, glm::value_ptr(model));
-        glUniformMatrix4fv(viewIdx, 1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(projectionIdx, 1, GL_FALSE, glm::value_ptr(projection));
 
         // Draw!
         glDrawArrays(GL_TRIANGLES, 0, 36);
