@@ -47,10 +47,20 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
 add_subdirectory(vendor/glfw)
+
+# spdlog
+add_subdirectory(vendor/spdlog)
 
 # glm
 add_subdirectory(vendor/glm)
+
+# place all the dependencies in a single folder
+set_target_properties(glfw PROPERTIES FOLDER "Dependencies/GLFW3")
+set_target_properties(update_mappings PROPERTIES FOLDER "Dependencies/GLFW3")
+set_target_properties(spdlog PROPERTIES FOLDER "Dependencies")
+set_target_properties(glm PROPERTIES FOLDER "Dependencies")
 
 # glitter target
 list(APPEND GLITTER_SOURCES
@@ -86,7 +96,7 @@ target_sources(Glitter PRIVATE
 target_include_directories(Glitter PRIVATE
     ${GLITTER_INCLUDES}
 )
-target_link_libraries(Glitter glfw glm)
+target_link_libraries(Glitter glfw spdlog glm)
 target_compile_features(Glitter PRIVATE cxx_std_23)
 target_compile_options(Glitter PRIVATE
     ${WALL_OTHERS} ${WALL_MSVC}

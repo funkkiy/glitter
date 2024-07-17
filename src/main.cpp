@@ -4,6 +4,12 @@
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+#include <spdlog/spdlog.h>
+
 #include <optional>
 #include <print>
 
@@ -11,7 +17,7 @@ class GlitterApplication {
 public:
     void Run()
     {
-        std::println("[*] Started Glitter.");
+        spdlog::info("Started Glitter.");
 
         if (Initialize() != InitializeResult::Ok) {
             Finish();
@@ -85,10 +91,10 @@ private:
                 case GL_DEBUG_TYPE_ERROR:
                 case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
                 case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
-                    std::println("[error] {}", msg);
+                    spdlog::error("{}", msg);
                     break;
                 default:
-                    std::println("[warn] {}", msg);
+                    spdlog::warn("{}", msg);
                     break;
                 }
             },
@@ -148,9 +154,48 @@ private:
         }
         m_currentProgram = shaderProgram;
 
-        // Triangle!
-        float vertices[]
-            = {-0.5f, -0.5f, 0.0f, 0.5f, -0.5f, 0.0f, 0.0f, 0.5f, 0.0f};
+        // Cube!
+        struct MeshAttribute {
+            float x, y, z;
+            float u, v;
+        };
+        MeshAttribute cube[] {
+            {.x = -0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +0.0f},
+            {.x = +0.5f, .y = -0.5f, .z = -0.5f, .u = +1.0f, .v = +0.0f},
+            {.x = +0.5f, .y = +0.5f, .z = -0.5f, .u = +1.0f, .v = +1.0f},
+            {.x = +0.5f, .y = +0.5f, .z = -0.5f, .u = +1.0f, .v = +1.0f},
+            {.x = -0.5f, .y = +0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f},
+            {.x = -0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +0.0f},
+            {.x = -0.5f, .y = -0.5f, .z = +0.5f, .u = +0.0f, .v = +0.0f},
+            {.x = +0.5f, .y = -0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f},
+            {.x = +0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +1.0f},
+            {.x = +0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +1.0f},
+            {.x = -0.5f, .y = +0.5f, .z = +0.5f, .u = +0.0f, .v = +1.0f},
+            {.x = -0.5f, .y = -0.5f, .z = +0.5f, .u = +0.0f, .v = +0.0f},
+            {.x = -0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f},
+            {.x = -0.5f, .y = +0.5f, .z = -0.5f, .u = +1.0f, .v = +1.0f},
+            {.x = -0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f},
+            {.x = -0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f},
+            {.x = -0.5f, .y = -0.5f, .z = +0.5f, .u = +0.0f, .v = +0.0f},
+            {.x = -0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f},
+            {.x = +0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f},
+            {.x = +0.5f, .y = +0.5f, .z = -0.5f, .u = +1.0f, .v = +1.0f},
+            {.x = +0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f},
+            {.x = +0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f},
+            {.x = +0.5f, .y = -0.5f, .z = +0.5f, .u = +0.0f, .v = +0.0f},
+            {.x = +0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f},
+            {.x = -0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f},
+            {.x = +0.5f, .y = -0.5f, .z = -0.5f, .u = +1.0f, .v = +1.0f},
+            {.x = +0.5f, .y = -0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f},
+            {.x = +0.5f, .y = -0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f},
+            {.x = -0.5f, .y = -0.5f, .z = +0.5f, .u = +0.0f, .v = +0.0f},
+            {.x = -0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f},
+            {.x = -0.5f, .y = +0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f},
+            {.x = +0.5f, .y = +0.5f, .z = -0.5f, .u = +1.0f, .v = +1.0f},
+            {.x = +0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f},
+            {.x = +0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f},
+            {.x = -0.5f, .y = +0.5f, .z = +0.5f, .u = +0.0f, .v = +0.0f},
+            {.x = -0.5f, .y = +0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f}};
 
         // Create VAO and VBO
         GLuint VAO, VBO;
@@ -161,13 +206,20 @@ private:
         glBindVertexArray(VAO);
 
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(
-            GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(cube), cube, GL_STATIC_DRAW);
 
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
-            sizeof(float) * 3, nullptr);
+        // Declare the Position Attribute
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(MeshAttribute),
+            reinterpret_cast<void*>(offsetof(MeshAttribute, x)));
         glEnableVertexAttribArray(0);
 
+        // Declare the UV Attribute
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(MeshAttribute),
+            reinterpret_cast<void*>(offsetof(MeshAttribute, u)));
+        glEnableVertexAttribArray(1);
+
+        // Unbind VAO and VBO
+        glBindVertexArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
         m_currentVAO = VAO;
@@ -179,9 +231,23 @@ private:
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        // Pass MVP into the Vertex Shader
+        GLint modelIdx = glGetUniformLocation(m_currentProgram, "uModel");
+
+        // The Model has to follow the Scale-Rotate-Translate order
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.5f, -0.5f, 0.0f));
+        model = glm::rotate(
+            model, (float)glfwGetTime(), glm::vec3(0.0f, 0.45f, 1.0f));
+
         glUseProgram(m_currentProgram);
         glBindVertexArray(m_currentVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        // Uniforms must be set after a program is bound.
+        glUniformMatrix4fv(modelIdx, 1, GL_FALSE, glm::value_ptr(model));
+
+        // Draw!
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         glfwSwapBuffers(m_window);
         glfwPollEvents();
