@@ -7,6 +7,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/random.hpp>
 
 #include <spdlog/spdlog.h>
 
@@ -80,6 +81,26 @@ private:
                 app->m_windowHeight = height;
                 glViewport(0, 0, width, height);
             });
+
+        glfwSetKeyCallback(m_window,
+            [](GLFWwindow* window, int key, int scancode, int action,
+                int mods) {
+                auto app = static_cast<GlitterApplication*>(
+                    glfwGetWindowUserPointer(window));
+                switch (key) {
+                case GLFW_KEY_SPACE:
+                    if (action == GLFW_RELEASE) {
+                        app->m_cubes.emplace_back(
+                            Cube {.pos = glm::sphericalRand(6.0f)});
+                    }
+                    break;
+                case GLFW_KEY_ESCAPE:
+                    glfwSetWindowShouldClose(window, true);
+                    break;
+                default:
+                    break;
+                }
+        });
 
         if (!gladLoadGLLoader(
                 reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
@@ -241,12 +262,6 @@ private:
 
         m_currentVAO = VAO;
 
-        // Seed the RNG.
-        std::srand(std::time(0));
-
-        // Determine how many Cubes should be drawn.
-        m_cubeCount = (std::rand() % 10) + 1;
-
         return PrepareResult::Ok;
     }
 
@@ -286,16 +301,11 @@ private:
         glBindVertexArray(m_currentVAO);
 
         // Render each Cube.
-        for (int i = 0; i < m_cubeCount; i++) {
+        for (auto& cube : m_cubes) {
             // The Model has to follow the Scale-Rotate-Translate order.
             glm::mat4 model = glm::mat4(1.0f);
-            model = glm::scale(model, glm::vec3(0.5f));
-
-            if (i < 5) {
-                model = glm::translate(model, glm::vec3(-2.75f + (1.5f * i), 0.0f, 0.0f));
-            } else {
-                model = glm::translate(model, glm::vec3(-2.75f + (1.5f * (i - 5)), 0.0f, -1.5f));
-            }
+            model = glm::scale(model, glm::vec3(0.25f));
+            model = glm::translate(model, cube.pos);
 
             // Pass the Model into the Vertex Shader.
             glProgramUniformMatrix4fv(
@@ -322,7 +332,10 @@ private:
     uint32_t m_windowWidth {640};
     uint32_t m_windowHeight {480};
 
-    uint32_t m_cubeCount {};
+    struct Cube {
+        glm::vec3 pos;
+    };
+    std::vector<Cube> m_cubes;
 };
 
 int main()
