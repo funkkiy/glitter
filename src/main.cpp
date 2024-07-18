@@ -102,9 +102,14 @@ private:
                         model = glm::scale(model, glm::vec3(0.25f));
                         model = glm::translate(model, glm::sphericalRand(6.0f));
 
-                        int padding {};
+                        int alignment {};
                         glGetIntegerv(
-                            GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &padding);
+                            GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &alignment);
+
+                        // Calculate how much padding we need.
+                        size_t padding = sizeof(ShaderData) % alignment == 0
+                            ? sizeof(ShaderData)
+                            : alignment - (sizeof(ShaderData) % alignment);
 
                         // Add the new Cube to the UBO.
                         ShaderData cubeData {model, app->m_currentView,
@@ -121,9 +126,7 @@ private:
                         }
 
                         // Push the padding into the UBO.
-                        // (note): What if sizeof(struct) > padding?
-                        app->m_shaderData.insert(app->m_shaderData.end(),
-                            padding - sizeof(ShaderData), '\0');
+                        app->m_shaderData.insert(app->m_shaderData.end(), padding, '\0');
                     }
                     break;
                 case GLFW_KEY_ESCAPE:
