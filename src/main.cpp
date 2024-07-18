@@ -147,6 +147,13 @@ private:
         // Create the Vertex and Fragment shaders.
         GLint shadersOk = true;
 
+        auto printErrorMsg = [](GLuint shader, const char *shaderType) {
+            GLchar error[512];
+            GLsizei errorLen = 0;
+            glGetShaderInfoLog(shader, 512, &errorLen, error);
+            spdlog::error("[{}] {}", shaderType, error);
+        };
+
         // Vertex Shader.
         std::optional<std::string> vertexSrc
             = Glitter::Util::ReadFile("shaders/VertexShader.glsl");
@@ -159,6 +166,7 @@ private:
         glCompileShader(vertexShader);
         glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &shadersOk);
         if (!shadersOk) {
+            printErrorMsg(vertexShader, "vertex");
             return PrepareResult::ShaderCompileError;
         }
 
@@ -174,6 +182,7 @@ private:
         glCompileShader(fragmentShader);
         glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &shadersOk);
         if (!shadersOk) {
+            printErrorMsg(fragmentShader, "fragment");
             return PrepareResult::ShaderCompileError;
         }
 
