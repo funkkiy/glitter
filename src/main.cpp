@@ -147,7 +147,7 @@ private:
         // Create the Vertex and Fragment shaders.
         GLint shadersOk = true;
 
-        auto printErrorMsg = [](GLuint shader, const char *shaderType) {
+        auto printErrorMsg = [](GLuint shader, const char* shaderType) {
             GLchar error[512];
             GLsizei errorLen = 0;
             glGetShaderInfoLog(shader, 512, &errorLen, error);
