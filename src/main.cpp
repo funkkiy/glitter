@@ -144,6 +144,9 @@ private:
 
         glfwSwapInterval(1);
 
+        // Seed the RNG.
+        std::srand(std::time(nullptr));
+
         return InitializeResult::Ok;
     }
 
