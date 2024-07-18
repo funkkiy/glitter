@@ -90,8 +90,40 @@ private:
                 switch (key) {
                 case GLFW_KEY_SPACE:
                     if (action == GLFW_RELEASE) {
-                        app->m_cubes.emplace_back(
-                            Cube {.pos = glm::sphericalRand(6.0f)});
+                        // We only accept up to 999 cubes.
+                        if (app->m_shaderData.size()
+                            >= (sizeof(ShaderData) + 64) * 999) {
+                            break;
+                        }
+
+                        // The Model has to follow the Scale-Rotate-Translate
+                        // order.
+                        glm::mat4 model = glm::mat4(1.0f);
+                        model = glm::scale(model, glm::vec3(0.25f));
+                        model = glm::translate(model, glm::sphericalRand(6.0f));
+
+                        int padding {};
+                        glGetIntegerv(
+                            GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &padding);
+
+                        // Add the new Cube to the UBO.
+                        ShaderData cubeData {model, app->m_currentView,
+                            app->m_currentProjection};
+
+                        // Reserve enough space for the new Cube and its
+                        // padding.
+                        app->m_shaderData.reserve(sizeof(ShaderData) + 64);
+
+                        // Push the Cube into the UBO.
+                        for (size_t i = 0; i < sizeof(ShaderData); i++) {
+                            app->m_shaderData.emplace_back(
+                                reinterpret_cast<uint8_t*>(&cubeData)[i]);
+                        }
+
+                        // Push the padding into the UBO.
+                        // (note): What if sizeof(struct) > padding?
+                        app->m_shaderData.insert(app->m_shaderData.end(),
+                            padding - sizeof(ShaderData), '\0');
                     }
                     break;
                 case GLFW_KEY_ESCAPE:
@@ -278,16 +310,14 @@ private:
             static_cast<float>(m_windowWidth)
                 / static_cast<float>(m_windowHeight),
             0.1f, 100.0f);
+        m_currentView = view;
+        m_currentProjection = projection;
 
-        // Create UBO buffer containing View and Projection.
-        struct ShaderData {
-            glm::mat4 view;
-            glm::mat4 projection;
-        };
-        ShaderData meshData = {view, projection};
+        // Create empty UBO buffer.
         GLuint ubo {};
         glCreateBuffers(1, &ubo);
-        glNamedBufferStorage(ubo, sizeof(ShaderData), &meshData, 0);
+        glNamedBufferData(
+            ubo, (sizeof(ShaderData) + 64) * 999, nullptr, GL_DYNAMIC_DRAW);
         m_currentUBO = ubo;
 
         return PrepareResult::Ok;
@@ -297,8 +327,9 @@ private:
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Obtain the location for the View Uniform.
-        GLint modelIdx = glGetUniformLocation(m_currentProgram, "uModel");
+        // Upload the ShaderData buffer into the UBO.
+        glNamedBufferSubData(m_currentUBO, 0,
+            sizeof(m_shaderData[0]) * m_shaderData.size(), m_shaderData.data());
 
         // Pass other Uniforms into the Vertex Shader.
         GLint objectColorIdx
@@ -307,21 +338,18 @@ private:
         glProgramUniform3fv(m_currentProgram, objectColorIdx, 1,
             glm::value_ptr(firstCubeColor));
 
-        // Bind the Program, its VAO and UBO.
+        // Bind the Program and VAO.
         glUseProgram(m_currentProgram);
         glBindVertexArray(m_currentVAO);
-        glBindBufferBase(GL_UNIFORM_BUFFER, 0, m_currentUBO);
 
         // Render each Cube.
-        for (auto& cube : m_cubes) {
-            // The Model has to follow the Scale-Rotate-Translate order.
-            glm::mat4 model = glm::mat4(1.0f);
-            model = glm::scale(model, glm::vec3(0.25f));
-            model = glm::translate(model, cube.pos);
+        for (int i = 0; i < m_shaderData.size() / sizeof(ShaderData); i++) {
+            int padding {};
+            glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &padding);
 
-            // Pass the Model into the Vertex Shader.
-            glProgramUniformMatrix4fv(
-                m_currentProgram, modelIdx, 1, GL_FALSE, glm::value_ptr(model));
+            // Bind the Cube's range in the UBO.
+            glBindBufferRange(GL_UNIFORM_BUFFER, 0, m_currentUBO, padding * i,
+                sizeof(ShaderData));
 
             // Draw the Cube!
             glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -345,10 +373,14 @@ private:
     uint32_t m_windowWidth {640};
     uint32_t m_windowHeight {480};
 
-    struct Cube {
-        glm::vec3 pos;
+    struct ShaderData {
+        glm::mat4 model;
+        glm::mat4 view;
+        glm::mat4 projection;
     };
-    std::vector<Cube> m_cubes;
+    std::vector<uint8_t> m_shaderData {};
+    glm::mat4 m_currentView {};
+    glm::mat4 m_currentProjection {};
 };
 
 int main()
