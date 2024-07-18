@@ -269,6 +269,8 @@ private:
         glVertexArrayAttribFormat(
             VAO, 1, 2, GL_FLOAT, GL_FALSE, offsetof(MeshAttribute, u));
 
+        m_currentVAO = VAO;
+
         // Calculate View and Projection.
         glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 2.5f, -3.5f),
             glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -277,19 +279,16 @@ private:
                 / static_cast<float>(m_windowHeight),
             0.1f, 100.0f);
 
-        // Pass View and Projection into the Vertex Shader using SSBOs.
+        // Create SSBO buffer containing View and Projection.
         struct ShaderData {
             glm::mat4 view;
             glm::mat4 projection;
         };
         ShaderData meshData = {view, projection};
-
         GLuint ssbo = 0;
         glCreateBuffers(1, &ssbo);
         glNamedBufferStorage(ssbo, sizeof(ShaderData), &meshData, 0);
         m_currentSSBO = ssbo;
-
-        m_currentVAO = VAO;
 
         return PrepareResult::Ok;
     }
