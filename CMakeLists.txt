@@ -51,6 +51,7 @@ set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
 add_subdirectory(vendor/glfw)
 
 # spdlog
+set(SPDLOG_ENABLE_PCH ON CACHE BOOL "" FORCE)
 add_subdirectory(vendor/spdlog)
 
 # glm
