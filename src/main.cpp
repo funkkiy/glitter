@@ -6,8 +6,8 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/random.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <spdlog/spdlog.h>
 
@@ -100,7 +100,7 @@ private:
                 default:
                     break;
                 }
-        });
+            });
 
         if (!gladLoadGLLoader(
                 reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
