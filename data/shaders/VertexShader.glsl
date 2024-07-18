@@ -6,7 +6,7 @@ layout (location = 1) in vec2 TexCoordAttrib;
 uniform mat4 uModel;
 uniform vec3 uObjectColor;
 
-layout (std430, binding=0) buffer ShaderData
+layout (std140, binding = 0) uniform ShaderData
 {
     mat4 uView;
     mat4 uProjection;

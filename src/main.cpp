@@ -279,16 +279,16 @@ private:
                 / static_cast<float>(m_windowHeight),
             0.1f, 100.0f);
 
-        // Create SSBO buffer containing View and Projection.
+        // Create UBO buffer containing View and Projection.
         struct ShaderData {
             glm::mat4 view;
             glm::mat4 projection;
         };
         ShaderData meshData = {view, projection};
-        GLuint ssbo = 0;
-        glCreateBuffers(1, &ssbo);
-        glNamedBufferStorage(ssbo, sizeof(ShaderData), &meshData, 0);
-        m_currentSSBO = ssbo;
+        GLuint ubo {};
+        glCreateBuffers(1, &ubo);
+        glNamedBufferStorage(ubo, sizeof(ShaderData), &meshData, 0);
+        m_currentUBO = ubo;
 
         return PrepareResult::Ok;
     }
@@ -307,10 +307,10 @@ private:
         glProgramUniform3fv(m_currentProgram, objectColorIdx, 1,
             glm::value_ptr(firstCubeColor));
 
-        // Bind the Program and its VAO.
+        // Bind the Program, its VAO and UBO.
         glUseProgram(m_currentProgram);
         glBindVertexArray(m_currentVAO);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_currentSSBO);
+        glBindBufferBase(GL_UNIFORM_BUFFER, 0, m_currentUBO);
 
         // Render each Cube.
         for (auto& cube : m_cubes) {
@@ -340,7 +340,7 @@ private:
     GLFWwindow* m_window {};
     GLuint m_currentProgram {};
     GLuint m_currentVAO {};
-    GLuint m_currentSSBO {};
+    GLuint m_currentUBO {};
 
     uint32_t m_windowWidth {640};
     uint32_t m_windowHeight {480};
