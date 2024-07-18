@@ -269,6 +269,26 @@ private:
         glVertexArrayAttribFormat(
             VAO, 1, 2, GL_FLOAT, GL_FALSE, offsetof(MeshAttribute, u));
 
+        // Calculate View and Projection.
+        glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 2.5f, -3.5f),
+            glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 projection = glm::perspective(glm::radians(45.0f),
+            static_cast<float>(m_windowWidth)
+                / static_cast<float>(m_windowHeight),
+            0.1f, 100.0f);
+
+        // Pass View and Projection into the Vertex Shader using SSBOs.
+        struct ShaderData {
+            glm::mat4 view;
+            glm::mat4 projection;
+        };
+        ShaderData meshData = {view, projection};
+
+        GLuint ssbo = 0;
+        glCreateBuffers(1, &ssbo);
+        glNamedBufferStorage(ssbo, sizeof(ShaderData), &meshData, 0);
+        m_currentSSBO = ssbo;
+
         m_currentVAO = VAO;
 
         return PrepareResult::Ok;
@@ -278,25 +298,8 @@ private:
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Obtain the location for each Uniform.
+        // Obtain the location for the View Uniform.
         GLint modelIdx = glGetUniformLocation(m_currentProgram, "uModel");
-        GLint viewIdx = glGetUniformLocation(m_currentProgram, "uView");
-        GLint projectionIdx
-            = glGetUniformLocation(m_currentProgram, "uProjection");
-
-        // Calculate View and Projection.
-        glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 2.5f, -3.5f),
-            glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        glm::mat4 projection = glm::perspective(glm::radians(45.0f),
-            static_cast<float>(m_windowWidth)
-                / static_cast<float>(m_windowHeight),
-            0.1f, 100.0f);
-
-        // Pass View and Projection into the Vertex Shader.
-        glProgramUniformMatrix4fv(
-            m_currentProgram, viewIdx, 1, GL_FALSE, glm::value_ptr(view));
-        glProgramUniformMatrix4fv(m_currentProgram, projectionIdx, 1, GL_FALSE,
-            glm::value_ptr(projection));
 
         // Pass other Uniforms into the Vertex Shader.
         GLint objectColorIdx
@@ -308,6 +311,7 @@ private:
         // Bind the Program and its VAO.
         glUseProgram(m_currentProgram);
         glBindVertexArray(m_currentVAO);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_currentSSBO);
 
         // Render each Cube.
         for (auto& cube : m_cubes) {
@@ -337,6 +341,7 @@ private:
     GLFWwindow* m_window {};
     GLuint m_currentProgram {};
     GLuint m_currentVAO {};
+    GLuint m_currentSSBO {};
 
     uint32_t m_windowWidth {640};
     uint32_t m_windowHeight {480};
