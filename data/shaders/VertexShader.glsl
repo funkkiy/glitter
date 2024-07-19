@@ -5,11 +5,15 @@ layout (location = 1) in vec2 TexCoordAttrib;
 
 uniform vec3 uObjectColor;
 
-layout (std140, binding = 0) uniform ShaderData
+layout (std140, binding = 0) uniform CommonData
 {
-    mat4 uModel;
     mat4 uView;
     mat4 uProjection;
+};
+
+layout (std140, binding = 1) uniform PerDrawData
+{
+    mat4 uModel;
 };
 
 out vec2 TexCoord;

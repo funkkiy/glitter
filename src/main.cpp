@@ -107,26 +107,23 @@ private:
                             GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &alignment);
 
                         // Calculate how much padding we need.
-                        size_t padding = sizeof(ShaderData) % alignment == 0
+                        size_t padding = sizeof(glm::mat4) % alignment == 0
                             ? 0
-                            : alignment - (sizeof(ShaderData) % alignment);
+                            : alignment - (sizeof(glm::mat4) % alignment);
 
-                        // Add the new Cube to the UBO.
-                        ShaderData cubeData {model, app->m_currentView,
-                            app->m_currentProjection};
+                        // Reserve enough space for the Model matrix of the new
+                        // Cube in the CPU-backing buffer.
+                        app->m_shaderData.reserve(sizeof(glm::mat4));
 
-                        // Reserve enough space for the new Cube and its
-                        // padding.
-                        app->m_shaderData.reserve(sizeof(ShaderData) + 64);
-
-                        // Push the Cube into the UBO.
-                        for (size_t i = 0; i < sizeof(ShaderData); i++) {
+                        // Push the Model matrix into the UBO.
+                        for (size_t i = 0; i < sizeof(glm::mat4); i++) {
                             app->m_shaderData.emplace_back(
-                                reinterpret_cast<uint8_t*>(&cubeData)[i]);
+                                reinterpret_cast<uint8_t*>(&model)[i]);
                         }
 
                         // Push the padding into the UBO.
-                        app->m_shaderData.insert(app->m_shaderData.end(), padding, '\0');
+                        app->m_shaderData.insert(
+                            app->m_shaderData.end(), padding, '\0');
                     }
                     break;
                 case GLFW_KEY_ESCAPE:
@@ -326,6 +323,23 @@ private:
             ubo, (sizeof(ShaderData) + 64) * 999, nullptr, GL_DYNAMIC_DRAW);
         m_currentUBO = ubo;
 
+        // Write the VP matrices into the UBO-backing CPU buffer.
+        for (size_t i = 0; i < sizeof(glm::mat4); i++) {
+            m_shaderData.emplace_back(
+                reinterpret_cast<uint8_t*>(&m_currentView)[i]);
+        }
+        for (size_t i = 0; i < sizeof(glm::mat4); i++) {
+            m_shaderData.emplace_back(
+                reinterpret_cast<uint8_t*>(&m_currentProjection)[i]);
+        }
+
+        // Push enough padding for the next PerDrawData writes.
+        int alignment {};
+        glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &alignment);
+        int padding = alignment - sizeof(glm::mat4) * 2;
+        m_shaderData.reserve(padding);
+        m_shaderData.insert(m_shaderData.end(), padding, '\0');
+
         return PrepareResult::Ok;
     }
 
@@ -353,9 +367,13 @@ private:
             int padding {};
             glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &padding);
 
-            // Bind the Cube's range in the UBO.
-            glBindBufferRange(GL_UNIFORM_BUFFER, 0, m_currentUBO, padding * i,
-                sizeof(ShaderData));
+            // Bind the VP matrices into the first slot of the UBO.
+            glBindBufferRange(
+                GL_UNIFORM_BUFFER, 0, m_currentUBO, 0, sizeof(glm::mat4) * 2);
+
+            // Bind the Model matrix into the second slot of the UBO.
+            glBindBufferRange(GL_UNIFORM_BUFFER, 1, m_currentUBO,
+                (padding * i), sizeof(glm::mat4));
 
             // Draw the Cube!
             glDrawArrays(GL_TRIANGLES, 0, 36);
