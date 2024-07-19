@@ -40,9 +40,12 @@ public:
         m_buffer.reserve(m_buffer.size() + futureSize);
 
         // Push the object.
-        for (size_t i = 0; i < sizeof(T); i++) {
-            m_buffer.emplace_back(reinterpret_cast<uint8_t*>(&t)[i]);
-        }
+        // (note): Could be faster if we copied the whole object at once, but
+        // then we'd need to use our own iterator for `m_buffer`. Not a
+        // performance concern right now.
+        std::copy(reinterpret_cast<uint8_t*>(&t),
+            reinterpret_cast<uint8_t*>(&t) + sizeof(t),
+            std::back_inserter(m_buffer));
 
         // Push the padding.
         m_buffer.resize(m_buffer.size() + paddingRequired);
