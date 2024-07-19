@@ -19,6 +19,53 @@
 #include <cstdlib>
 #include <ctime>
 
+class LinearAllocator {
+public:
+    LinearAllocator() { m_buffer = std::vector<uint8_t>(); };
+
+    // Returns the offset after the object in the buffer.
+    template <typename T> size_t Push(T& t)
+    {
+        if (!m_initializedAlignment) {
+            glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &m_alignment);
+            m_initializedAlignment = true;
+        }
+
+        // Calculate total amount of bytes that will be pushed.
+        size_t futureSize = m_buffer.size() + sizeof(T);
+        size_t paddingRequired = futureSize % m_alignment == 0
+            ? 0
+            : m_alignment - (futureSize % m_alignment);
+        size_t bytesRequired = futureSize + paddingRequired;
+        m_buffer.reserve(m_buffer.size() + bytesRequired);
+
+        // Push the object.
+        for (size_t i = 0; i < sizeof(T); i++) {
+            m_buffer.emplace_back(reinterpret_cast<uint8_t*>(&t)[i]);
+        }
+
+        // Push the padding.
+        m_buffer.insert(m_buffer.end(), paddingRequired, '\0');
+
+        return m_buffer.size();
+    }
+
+    uint8_t* Data() { return m_buffer.data(); }
+    size_t Size() { return m_buffer.size(); }
+    GLint GetAlignment()
+    {
+        assert(m_initializedAlignment);
+        return m_alignment;
+    }
+    void Clear() { m_buffer.clear(); }
+
+private:
+    std::vector<uint8_t> m_buffer {};
+
+    bool m_initializedAlignment {false};
+    GLint m_alignment {};
+};
+
 class GlitterApplication {
 public:
     void Run()
@@ -102,28 +149,8 @@ private:
                         model = glm::scale(model, glm::vec3(0.25f));
                         model = glm::translate(model, glm::sphericalRand(6.0f));
 
-                        int alignment {};
-                        glGetIntegerv(
-                            GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &alignment);
-
-                        // Calculate how much padding we need.
-                        size_t padding = sizeof(glm::mat4) % alignment == 0
-                            ? 0
-                            : alignment - (sizeof(glm::mat4) % alignment);
-
-                        // Reserve enough space for the Model matrix of the new
-                        // Cube in the CPU-backing buffer.
-                        app->m_shaderData.reserve(sizeof(glm::mat4));
-
-                        // Push the Model matrix into the UBO.
-                        for (size_t i = 0; i < sizeof(glm::mat4); i++) {
-                            app->m_shaderData.emplace_back(
-                                reinterpret_cast<uint8_t*>(&model)[i]);
-                        }
-
-                        // Push the padding into the UBO.
-                        app->m_shaderData.insert(
-                            app->m_shaderData.end(), padding, '\0');
+                        app->m_uboAllocator.Push(model);
+                        app->m_nCubes += 1;
                     }
                     break;
                 case GLFW_KEY_ESCAPE:
@@ -324,21 +351,10 @@ private:
         m_currentUBO = ubo;
 
         // Write the VP matrices into the UBO-backing CPU buffer.
-        for (size_t i = 0; i < sizeof(glm::mat4); i++) {
-            m_shaderData.emplace_back(
-                reinterpret_cast<uint8_t*>(&m_currentView)[i]);
-        }
-        for (size_t i = 0; i < sizeof(glm::mat4); i++) {
-            m_shaderData.emplace_back(
-                reinterpret_cast<uint8_t*>(&m_currentProjection)[i]);
-        }
-
-        // Push enough padding for the next PerDrawData writes.
-        int alignment {};
-        glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &alignment);
-        int padding = alignment - sizeof(glm::mat4) * 2;
-        m_shaderData.reserve(padding);
-        m_shaderData.insert(m_shaderData.end(), padding, '\0');
+        struct {
+            glm::mat4 view, projection;
+        } CommonData = {view, projection};
+        m_perDrawDataOffset = m_uboAllocator.Push(CommonData);
 
         return PrepareResult::Ok;
     }
@@ -349,7 +365,7 @@ private:
 
         // Upload the ShaderData buffer into the UBO.
         glNamedBufferSubData(m_currentUBO, 0,
-            sizeof(m_shaderData[0]) * m_shaderData.size(), m_shaderData.data());
+            sizeof(uint8_t) * m_uboAllocator.Size(), m_uboAllocator.Data());
 
         // Pass other Uniforms into the Vertex Shader.
         GLint objectColorIdx
@@ -363,17 +379,15 @@ private:
         glBindVertexArray(m_currentVAO);
 
         // Render each Cube.
-        for (int i = 0; i < m_shaderData.size() / sizeof(ShaderData); i++) {
-            int padding {};
-            glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &padding);
-
+        for (int i = 0; i < m_nCubes; i++) {
             // Bind the VP matrices into the first slot of the UBO.
             glBindBufferRange(
                 GL_UNIFORM_BUFFER, 0, m_currentUBO, 0, sizeof(glm::mat4) * 2);
 
             // Bind the Model matrix into the second slot of the UBO.
             glBindBufferRange(GL_UNIFORM_BUFFER, 1, m_currentUBO,
-                (padding * i), sizeof(glm::mat4));
+                m_perDrawDataOffset + m_uboAllocator.GetAlignment() * i,
+                sizeof(glm::mat4));
 
             // Draw the Cube!
             glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -405,6 +419,10 @@ private:
     std::vector<uint8_t> m_shaderData {};
     glm::mat4 m_currentView {};
     glm::mat4 m_currentProjection {};
+
+    int m_nCubes {};
+    LinearAllocator m_uboAllocator {};
+    size_t m_perDrawDataOffset {};
 };
 
 int main()
