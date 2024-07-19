@@ -37,7 +37,7 @@ public:
             ? 0
             : m_alignment - (futureSize % m_alignment);
         size_t bytesRequired = futureSize + paddingRequired;
-        m_buffer.reserve(m_buffer.size() + bytesRequired);
+        m_buffer.reserve(m_buffer.size() + futureSize);
 
         // Push the object.
         for (size_t i = 0; i < sizeof(T); i++) {
@@ -45,7 +45,7 @@ public:
         }
 
         // Push the padding.
-        m_buffer.insert(m_buffer.end(), paddingRequired, '\0');
+        m_buffer.resize(m_buffer.size() + paddingRequired);
 
         return m_buffer.size();
     }
