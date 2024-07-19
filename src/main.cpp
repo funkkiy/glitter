@@ -108,7 +108,7 @@ private:
 
                         // Calculate how much padding we need.
                         size_t padding = sizeof(ShaderData) % alignment == 0
-                            ? sizeof(ShaderData)
+                            ? 0
                             : alignment - (sizeof(ShaderData) % alignment);
 
                         // Add the new Cube to the UBO.
