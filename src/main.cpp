@@ -21,7 +21,7 @@
 
 class LinearAllocator {
 public:
-    LinearAllocator() { m_buffer = std::vector<uint8_t>(); };
+    LinearAllocator() {};
 
     // Returns the offset after the object in the buffer.
     template <typename T> size_t Push(T& t)
@@ -138,8 +138,7 @@ private:
                 case GLFW_KEY_SPACE:
                     if (action == GLFW_RELEASE) {
                         // We only accept up to 999 cubes.
-                        if (app->m_shaderData.size()
-                            >= (sizeof(ShaderData) + 64) * 999) {
+                        if (app->m_nCubes >= 999) {
                             break;
                         }
 
@@ -149,7 +148,8 @@ private:
                         model = glm::scale(model, glm::vec3(0.25f));
                         model = glm::translate(model, glm::sphericalRand(6.0f));
 
-                        app->m_uboAllocator.Push(model);
+                        PerDrawData shaderData {model};
+                        app->m_uboAllocator.Push(shaderData);
                         app->m_nCubes += 1;
                     }
                     break;
@@ -346,15 +346,15 @@ private:
         // Create empty UBO buffer.
         GLuint ubo {};
         glCreateBuffers(1, &ubo);
-        glNamedBufferData(
-            ubo, (sizeof(ShaderData) + 64) * 999, nullptr, GL_DYNAMIC_DRAW);
+
+        // Just enough for the Common stuff and 999 Cubes.
+        glNamedBufferData(ubo, sizeof(CommonData) + (sizeof(PerDrawData) * 999),
+            nullptr, GL_DYNAMIC_DRAW);
         m_currentUBO = ubo;
 
-        // Write the VP matrices into the UBO-backing CPU buffer.
-        struct {
-            glm::mat4 view, projection;
-        } CommonData = {view, projection};
-        m_perDrawDataOffset = m_uboAllocator.Push(CommonData);
+        // Write the Common data into the UBO-backing CPU buffer.
+        CommonData commonData = {view, projection};
+        m_perDrawDataOffset = m_uboAllocator.Push(commonData);
 
         return PrepareResult::Ok;
     }
@@ -380,14 +380,14 @@ private:
 
         // Render each Cube.
         for (int i = 0; i < m_nCubes; i++) {
-            // Bind the VP matrices into the first slot of the UBO.
+            // Bind the Common UBO data into the first slot of the UBO.
             glBindBufferRange(
-                GL_UNIFORM_BUFFER, 0, m_currentUBO, 0, sizeof(glm::mat4) * 2);
+                GL_UNIFORM_BUFFER, 0, m_currentUBO, 0, sizeof(CommonData));
 
-            // Bind the Model matrix into the second slot of the UBO.
+            // Bind the Per-Draw UBO data into the second slot of the UBO.
             glBindBufferRange(GL_UNIFORM_BUFFER, 1, m_currentUBO,
                 m_perDrawDataOffset + m_uboAllocator.GetAlignment() * i,
-                sizeof(glm::mat4));
+                sizeof(PerDrawData));
 
             // Draw the Cube!
             glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -411,14 +411,22 @@ private:
     uint32_t m_windowWidth {640};
     uint32_t m_windowHeight {480};
 
-    struct ShaderData {
-        glm::mat4 model;
+    glm::mat4 m_currentView {};
+    glm::mat4 m_currentProjection {};
+
+    struct CommonData {
         glm::mat4 view;
         glm::mat4 projection;
     };
-    std::vector<uint8_t> m_shaderData {};
-    glm::mat4 m_currentView {};
-    glm::mat4 m_currentProjection {};
+
+    struct PerDrawData {
+        glm::mat4 model;
+    };
+
+    struct ShaderData {
+        CommonData commonData;
+        PerDrawData perDrawData;
+    };
 
     int m_nCubes {};
     LinearAllocator m_uboAllocator {};
