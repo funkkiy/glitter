@@ -353,7 +353,7 @@ private:
 
         // Write the Common data into the UBO-backing CPU buffer.
         CommonData commonData = {view, projection};
-        m_perDrawDataOffset = m_uboAllocator.Push(commonData);
+        m_uboAllocator.Push(commonData);
 
         return PrepareResult::Ok;
     }
@@ -385,7 +385,7 @@ private:
 
             // Bind the Per-Draw UBO data into the second slot of the UBO.
             glBindBufferRange(GL_UNIFORM_BUFFER, 1, m_currentUBO,
-                m_perDrawDataOffset + m_uboAllocator.GetAlignment() * i,
+                m_uboAllocator.GetAlignment() * (i + 1),
                 sizeof(PerDrawData));
 
             // Draw the Cube!
@@ -429,7 +429,6 @@ private:
 
     int m_nCubes {};
     LinearAllocator m_uboAllocator {};
-    size_t m_perDrawDataOffset {};
 };
 
 int main()
