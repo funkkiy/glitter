@@ -11,6 +11,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include <stb_image.h>
+
 #include <optional>
 #include <print>
 
@@ -137,7 +139,7 @@ private:
                 case GLFW_KEY_SPACE:
                     if (action == GLFW_RELEASE) {
                         // We only accept up to 999 cubes.
-                        if (app->m_nCubes >= 999) {
+                        if (app->m_cubes.size() >= 999) {
                             break;
                         }
 
@@ -147,9 +149,10 @@ private:
                         model = glm::scale(model, glm::vec3(0.25f));
                         model = glm::translate(model, glm::sphericalRand(6.0f));
 
+                        app->m_cubes.push_back(Cube {.m_position = model, .m_texture = 0});
+
                         PerDrawData shaderData {model};
                         app->m_uboAllocator.Push(shaderData);
-                        app->m_nCubes += 1;
                     }
                     break;
                 case GLFW_KEY_ESCAPE:
@@ -192,7 +195,7 @@ private:
                 case GL_DEBUG_TYPE_ERROR:
                 case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
                 case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
-                    spdlog::error("{}", msg);
+                    spdlog::error("{} {}", source, msg);
                     break;
                 default:
                     spdlog::warn("{}", msg);
@@ -324,11 +327,13 @@ private:
         glEnableVertexArrayAttrib(VAO, 0);
         glVertexArrayAttribFormat(
             VAO, 0, 3, GL_FLOAT, GL_FALSE, offsetof(MeshAttribute, x));
+        glVertexArrayAttribBinding(VAO, 0, 0);
 
         // Declare the UV Attribute.
         glEnableVertexArrayAttrib(VAO, 1);
         glVertexArrayAttribFormat(
             VAO, 1, 2, GL_FLOAT, GL_FALSE, offsetof(MeshAttribute, u));
+        glVertexArrayAttribBinding(VAO, 1, 0);
 
         m_currentVAO = VAO;
 
@@ -355,6 +360,27 @@ private:
         CommonData commonData = {view, projection};
         m_uboAllocator.Push(commonData);
 
+        // Load the Cube texture.
+        GLuint texture {};
+        glCreateTextures(GL_TEXTURE_2D, 1, &texture);
+        glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        int width, height, nChannels;
+        unsigned char* textureData
+            = stbi_load("textures/Tile.png", &width, &height, &nChannels, 4);
+        if (textureData) {
+            glTextureStorage2D(texture, 1, GL_RGBA8, width, height);
+            glTextureSubImage2D(texture, 0, 0, 0, width, height, GL_RGBA,
+                GL_UNSIGNED_BYTE, textureData);
+            glGenerateTextureMipmap(texture);
+        }
+        stbi_image_free(textureData);
+
+        m_cubeTexture = texture;
+
         return PrepareResult::Ok;
     }
 
@@ -378,7 +404,7 @@ private:
         glBindVertexArray(m_currentVAO);
 
         // Render each Cube.
-        for (int i = 0; i < m_nCubes; i++) {
+        for (int i = 0; i < m_cubes.size(); i++) {
             // Bind the Common UBO data into the first slot of the UBO.
             glBindBufferRange(
                 GL_UNIFORM_BUFFER, 0, m_currentUBO, 0, sizeof(CommonData));
@@ -387,6 +413,9 @@ private:
             glBindBufferRange(GL_UNIFORM_BUFFER, 1, m_currentUBO,
                 m_uboAllocator.GetAlignment() * (i + 1),
                 sizeof(PerDrawData));
+
+            // Bind the texture.
+            glBindTextureUnit(0, m_cubeTexture);
 
             // Draw the Cube!
             glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -414,20 +443,27 @@ private:
     glm::mat4 m_currentProjection {};
 
     struct CommonData {
-        glm::mat4 view;
-        glm::mat4 projection;
+        glm::mat4 m_view;
+        glm::mat4 m_projection;
     };
 
     struct PerDrawData {
-        glm::mat4 model;
+        glm::mat4 m_model;
     };
 
     struct ShaderData {
-        CommonData commonData;
-        PerDrawData perDrawData;
+        CommonData m_commonData;
+        PerDrawData m_perDrawData;
     };
 
-    int m_nCubes {};
+    struct Cube {
+        glm::mat4 m_position;
+        uint32_t m_texture;
+    };
+    std::vector<Cube> m_cubes {};
+
+    GLuint m_cubeTexture;
+
     LinearAllocator m_uboAllocator {};
 };
 

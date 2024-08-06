@@ -22,5 +22,6 @@ out vec3 ObjectColor;
 void main()
 {
     gl_Position = uProjection * uView * uModel * vec4(PositionAttrib, 1.0);
+    TexCoord = TexCoordAttrib;
     ObjectColor = uObjectColor;
 }

@@ -102,6 +102,7 @@ target_compile_features(Glitter PRIVATE cxx_std_23)
 target_compile_options(Glitter PRIVATE
     ${WALL_OTHERS} ${WALL_MSVC}
 )
+target_compile_definitions(Glitter PUBLIC SPDLOG_COMPILED_LIB)
 
 # msvc-specific Glitter settings
 if(MSVC)
