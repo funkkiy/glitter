@@ -13,8 +13,10 @@
 
 #include <stb_image.h>
 
+#include <array>
 #include <optional>
 #include <print>
+#include <vector>
 
 #include <cmath>
 #include <cstdint>
@@ -149,10 +151,8 @@ private:
                         model = glm::scale(model, glm::vec3(0.25f));
                         model = glm::translate(model, glm::sphericalRand(6.0f));
 
-                        app->m_cubes.push_back(Cube {
-                            .m_position = model,
-                            .m_texture = app->m_loadedTextures[0]
-                        });
+                        app->m_cubes.push_back(Cube {.m_position = model,
+                            .m_texture = app->m_loadedTextures[std::rand() % app->m_loadedTextures.size()]});
 
                         PerDrawData shaderData {model};
                         app->m_uboAllocator.Push(shaderData);
@@ -363,25 +363,30 @@ private:
         CommonData commonData = {view, projection};
         m_uboAllocator.Push(commonData);
 
-        // Load the Cube texture.
-        GLuint texture {};
-        glCreateTextures(GL_TEXTURE_2D, 1, &texture);
-        glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        // Load some Cube textures.
+        std::array texturePaths(std::to_array<const char*>(
+            {"textures/Tile.png", "textures/Cobble.png"}));
 
-        int width, height, nChannels;
-        unsigned char* textureData
-            = stbi_load("textures/Tile.png", &width, &height, &nChannels, 4);
-        if (textureData) {
-            glTextureStorage2D(texture, 1, GL_RGBA8, width, height);
-            glTextureSubImage2D(texture, 0, 0, 0, width, height, GL_RGBA,
-                GL_UNSIGNED_BYTE, textureData);
-            glGenerateTextureMipmap(texture);
+        for (auto& path : texturePaths) {
+            GLuint texture {};
+            glCreateTextures(GL_TEXTURE_2D, 1, &texture);
+            glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_REPEAT);
+            glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+            int width, height, nChannels;
+            unsigned char* textureData
+                = stbi_load(path, &width, &height, &nChannels, 4);
+            if (textureData) {
+                glTextureStorage2D(texture, 1, GL_RGBA8, width, height);
+                glTextureSubImage2D(texture, 0, 0, 0, width, height, GL_RGBA,
+                    GL_UNSIGNED_BYTE, textureData);
+                glGenerateTextureMipmap(texture);
+            }
+            stbi_image_free(textureData);
+            m_loadedTextures.push_back(texture);
         }
-        stbi_image_free(textureData);
-        m_loadedTextures.push_back(texture);
 
         return PrepareResult::Ok;
     }
@@ -413,8 +418,7 @@ private:
 
             // Bind the Per-Draw UBO data into the second slot of the UBO.
             glBindBufferRange(GL_UNIFORM_BUFFER, 1, m_currentUBO,
-                m_uboAllocator.GetAlignment() * (i + 1),
-                sizeof(PerDrawData));
+                m_uboAllocator.GetAlignment() * (i + 1), sizeof(PerDrawData));
 
             // Bind the texture.
             glBindTextureUnit(0, m_cubes[i].m_texture);
