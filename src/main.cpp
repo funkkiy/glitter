@@ -149,7 +149,10 @@ private:
                         model = glm::scale(model, glm::vec3(0.25f));
                         model = glm::translate(model, glm::sphericalRand(6.0f));
 
-                        app->m_cubes.push_back(Cube {.m_position = model, .m_texture = 0});
+                        app->m_cubes.push_back(Cube {
+                            .m_position = model,
+                            .m_texture = app->m_loadedTextures[0]
+                        });
 
                         PerDrawData shaderData {model};
                         app->m_uboAllocator.Push(shaderData);
@@ -378,8 +381,7 @@ private:
             glGenerateTextureMipmap(texture);
         }
         stbi_image_free(textureData);
-
-        m_cubeTexture = texture;
+        m_loadedTextures.push_back(texture);
 
         return PrepareResult::Ok;
     }
@@ -415,7 +417,7 @@ private:
                 sizeof(PerDrawData));
 
             // Bind the texture.
-            glBindTextureUnit(0, m_cubeTexture);
+            glBindTextureUnit(0, m_cubes[i].m_texture);
 
             // Draw the Cube!
             glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -446,25 +448,22 @@ private:
         glm::mat4 m_view;
         glm::mat4 m_projection;
     };
-
     struct PerDrawData {
         glm::mat4 m_model;
     };
-
     struct ShaderData {
         CommonData m_commonData;
         PerDrawData m_perDrawData;
     };
+    LinearAllocator m_uboAllocator {};
+
+    std::vector<GLuint> m_loadedTextures {};
 
     struct Cube {
         glm::mat4 m_position;
-        uint32_t m_texture;
+        GLuint m_texture;
     };
     std::vector<Cube> m_cubes {};
-
-    GLuint m_cubeTexture;
-
-    LinearAllocator m_uboAllocator {};
 };
 
 int main()
