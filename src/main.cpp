@@ -152,10 +152,8 @@ private:
                         model = glm::translate(model, glm::sphericalRand(6.0f));
 
                         app->m_cubes.push_back(Cube {.m_position = model,
-                            .m_texture = app->m_loadedTextures[std::rand() % app->m_loadedTextures.size()]});
-
-                        PerDrawData shaderData {model};
-                        app->m_uboAllocator.Push(shaderData);
+                            .m_texture = app->m_loadedTextures[std::rand()
+                                % app->m_loadedTextures.size()]});
                     }
                     break;
                 case GLFW_KEY_ESCAPE:
@@ -340,16 +338,6 @@ private:
 
         m_currentVAO = VAO;
 
-        // Calculate View and Projection.
-        glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 2.5f, -3.5f),
-            glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        glm::mat4 projection = glm::perspective(glm::radians(45.0f),
-            static_cast<float>(m_windowWidth)
-                / static_cast<float>(m_windowHeight),
-            0.1f, 100.0f);
-        m_currentView = view;
-        m_currentProjection = projection;
-
         // Create empty UBO buffer.
         GLuint ubo {};
         glCreateBuffers(1, &ubo);
@@ -358,10 +346,6 @@ private:
         glNamedBufferData(ubo, sizeof(CommonData) + (sizeof(PerDrawData) * 999),
             nullptr, GL_DYNAMIC_DRAW);
         m_currentUBO = ubo;
-
-        // Write the Common data into the UBO-backing CPU buffer.
-        CommonData commonData = {view, projection};
-        m_uboAllocator.Push(commonData);
 
         // Load some Cube textures.
         std::array texturePaths(std::to_array<const char*>(
@@ -395,7 +379,30 @@ private:
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Upload the ShaderData buffer into the UBO.
+        // Clear the UBO CPU-backing buffer.
+        m_uboAllocator.Clear();
+
+        // Calculate View and Projection.
+        glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 2.5f, -3.5f),
+            glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 projection = glm::perspective(glm::radians(45.0f),
+            static_cast<float>(m_windowWidth)
+                / static_cast<float>(m_windowHeight),
+            0.1f, 100.0f);
+        m_currentView = view;
+        m_currentProjection = projection;
+
+        // Write the CommonData into the UBO-backing CPU buffer.
+        CommonData commonData = {view, projection};
+        m_uboAllocator.Push(commonData);
+
+        // Write each Cube's PerDrawData into the buffer.
+        for (auto& cube : m_cubes) {
+            PerDrawData shaderData {cube.m_position};
+            m_uboAllocator.Push(shaderData);
+        }
+
+        // Upload the CPU-backing buffer into the UBO.
         glNamedBufferSubData(m_currentUBO, 0,
             sizeof(uint8_t) * m_uboAllocator.Size(), m_uboAllocator.Data());
 
