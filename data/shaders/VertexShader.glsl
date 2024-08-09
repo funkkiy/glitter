@@ -1,27 +1,32 @@
 #version 460 core
 
-layout (location = 0) in vec3 PositionAttrib;
-layout (location = 1) in vec2 TexCoordAttrib;
-
-uniform vec3 uObjectColor;
+layout (location = 0) in vec3 a_Position;
+layout (location = 1) in vec2 a_TexCoord;
+layout (location = 2) in vec3 a_Normal;
 
 layout (std140, binding = 0) uniform CommonData
 {
-    mat4 uView;
-    mat4 uProjection;
+    mat4 u_View;
+    mat4 u_Projection;
+    vec4 u_EyePos;
 };
 
 layout (std140, binding = 1) uniform PerDrawData
 {
-    mat4 uModel;
+    mat4 u_Model;
 };
 
-out vec2 TexCoord;
-out vec3 ObjectColor;
+out vec2 v_TexCoord;
+out vec3 v_Normal;
+out vec3 v_FragPos;
+out vec4 v_EyePos;
 
 void main()
 {
-    gl_Position = uProjection * uView * uModel * vec4(PositionAttrib, 1.0);
-    TexCoord = TexCoordAttrib;
-    ObjectColor = uObjectColor;
+    gl_Position = u_Projection * u_View * u_Model * vec4(a_Position, 1.0);
+
+    v_TexCoord = a_TexCoord;
+    v_Normal = a_Position;
+    v_FragPos = vec3(u_Model * vec4(a_Position, 1.0));
+    v_EyePos = u_EyePos;
 }
