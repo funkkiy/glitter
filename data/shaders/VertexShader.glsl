@@ -9,6 +9,8 @@ layout (std140, binding = 0) uniform CommonData
     mat4 u_View;
     mat4 u_Projection;
     vec4 u_EyePos;
+    vec4 u_LightPos;
+    vec4 u_LightColor;
 };
 
 layout (std140, binding = 1) uniform PerDrawData

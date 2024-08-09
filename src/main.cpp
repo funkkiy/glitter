@@ -652,7 +652,12 @@ private:
         m_currentProjection = projection;
 
         // Write the CommonData into the UBO-backing CPU buffer.
-        CommonData commonData = {view, projection, glm::vec4(eyePos, 1.0)};
+        CommonData commonData = {.m_view = view,
+            .m_projection = projection,
+            .m_eyePos = glm::vec4(eyePos, 1.0),
+            .m_lightPos = glm::vec4(1.0, 0.5, -0.5, 1.0),
+            .m_lightColor = glm::vec4(1.0, 0.0, 0.0, 1.0)
+        };
         m_uboAllocator.Push(commonData);
 
         // Write each Cube's PerDrawData into the buffer.
@@ -711,6 +716,8 @@ private:
         glm::mat4 m_view;
         glm::mat4 m_projection;
         glm::vec4 m_eyePos;
+        glm::vec4 m_lightPos;
+        glm::vec4 m_lightColor;
     };
     struct PerDrawData {
         glm::mat4 m_model;
