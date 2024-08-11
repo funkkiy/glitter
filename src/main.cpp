@@ -133,8 +133,8 @@ private:
             });
 
         glfwSetKeyCallback(m_window,
-            [](GLFWwindow* window, int key, int scancode, int action,
-                int mods) {
+            [](GLFWwindow* window, int key, int /*scancode*/, int action,
+                int /*mods*/) {
                 auto app = static_cast<GlitterApplication*>(
                     glfwGetWindowUserPointer(window));
                 switch (key) {
@@ -190,8 +190,9 @@ private:
         glEnable(GL_DEBUG_OUTPUT);
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
         glDebugMessageCallback(
-            [](GLenum source, GLenum type, GLuint id, GLenum severity,
-                GLsizei length, const GLchar* msg, const void* userParam) {
+            [](GLenum source, GLenum type, GLuint /*id*/, GLenum /*severity*/,
+                GLsizei /*length*/, const GLchar* msg,
+                const void* /*userParam*/) {
                 switch (type) {
                 case GL_DEBUG_TYPE_ERROR:
                 case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
