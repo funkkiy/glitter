@@ -79,6 +79,9 @@ list(APPEND GLITTER_SOURCES
 	
 	# stb
     vendor/stb/stb_image.cpp
+
+    # cgltf
+    vendor/cgltf/cgltf.cpp
 )
 
 list(APPEND GLITTER_INCLUDES
@@ -90,6 +93,9 @@ list(APPEND GLITTER_INCLUDES
 	
 	# stb
     vendor/stb
+
+    # cgltf
+    vendor/cgltf
 )
 
 add_executable(Glitter)

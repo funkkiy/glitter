@@ -9,8 +9,8 @@
 #include <glm/gtc/random.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <cgltf.h>
 #include <spdlog/spdlog.h>
-
 #include <stb_image.h>
 
 #include <array>
@@ -256,12 +256,12 @@ private:
         m_currentProgram = shaderProgram;
 
         // Cube!
-        struct MeshAttribute {
+        struct MeshVertex {
             float x, y, z;
             float u, v;
             float nx, ny, nz;
         };
-        MeshAttribute cube[] {{.x = -0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +0.0f, .nx = +0.0f, .ny = +0.0f, .nz = -1.0f},
+        MeshVertex cube[] {{.x = -0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +0.0f, .nx = +0.0f, .ny = +0.0f, .nz = -1.0f},
             {.x = +0.5f, .y = -0.5f, .z = -0.5f, .u = +1.0f, .v = +0.0f, .nx = +0.0f, .ny = +0.0f, .nz = -1.0f},
             {.x = +0.5f, .y = +0.5f, .z = -0.5f, .u = +1.0f, .v = +1.0f, .nx = +0.0f, .ny = +0.0f, .nz = -1.0f},
             {.x = +0.5f, .y = +0.5f, .z = -0.5f, .u = +1.0f, .v = +1.0f, .nx = +0.0f, .ny = +0.0f, .nz = -1.0f},
@@ -298,6 +298,89 @@ private:
             {.x = -0.5f, .y = +0.5f, .z = +0.5f, .u = +0.0f, .v = +0.0f, .nx = +0.0f, .ny = +1.0f, .nz = +0.0f},
             {.x = -0.5f, .y = +0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f, .nx = +0.0f, .ny = +1.0f, .nz = +0.0f}};
 
+        // glTF mesh!
+        cgltf_options options {};
+        cgltf_data* data = nullptr;
+        cgltf_result result = cgltf_parse_file(&options, "meshes/teapot.gltf", &data);
+        cgltf_load_buffers(&options, data, "meshes/teapot.gltf");
+
+        // build a vertex buffer from the mesh data ...
+
+        if (result == cgltf_result_success) {
+            // Iterate through each meshes, then through its primitives and their attributes, creating one VBO per primitive and
+            // filling it with data pointed by the attribute buffer views. A mesh can have several primitives.
+
+            struct GltfPrimitive {
+                std::vector<MeshVertex> m_vertexData;
+            };
+
+            struct GltfMesh {
+                std::vector<GltfPrimitive> m_primitives;
+            };
+
+            std::vector<GltfMesh> parsedMeshes;
+            for (int meshIdx = 0; meshIdx < data->meshes_count; meshIdx++) {
+                cgltf_mesh mesh = data->meshes[meshIdx];
+
+                GltfMesh gltfMesh {};
+                for (int primIdx = 0; primIdx < mesh.primitives_count; primIdx++) {
+                    cgltf_primitive prim = mesh.primitives[primIdx];
+
+                    size_t vertexCount {0};
+                    // Fill out the accessor pointers.
+                    cgltf_accessor* positionAccessor = nullptr;
+                    cgltf_accessor* texCoordAccessor = nullptr;
+                    cgltf_accessor* normalAccessor = nullptr;
+                    for (int attribIdx = 0; attribIdx < prim.attributes_count; attribIdx++) {
+                        cgltf_attribute attrib = prim.attributes[attribIdx];
+
+                        switch (attrib.type) {
+                        case cgltf_attribute_type_position:
+                            vertexCount = attrib.data->count;
+                            if (attrib.data->component_type == cgltf_component_type_r_32f) {
+                                positionAccessor = attrib.data;
+                            }
+                            break;
+                        case cgltf_attribute_type_texcoord:
+                            if (attrib.data->component_type == cgltf_component_type_r_32f) {
+                                texCoordAccessor = attrib.data;
+                            }
+                            break;
+                        case cgltf_attribute_type_normal:
+                            if (attrib.data->component_type == cgltf_component_type_r_32f) {
+                                normalAccessor = attrib.data;
+                            }
+                            break;
+                        default:
+                            break;
+                        }
+                    }
+
+                    GltfPrimitive gltfPrim {};
+
+                    for (int vertexIdx = 0; vertexIdx < vertexCount; vertexIdx++) {
+                        MeshVertex vertex {};
+
+                        if (positionAccessor) {
+                            cgltf_accessor_read_float(positionAccessor, vertexIdx, &vertex.x, 3);
+                        }
+                        if (texCoordAccessor) {
+                            cgltf_accessor_read_float(texCoordAccessor, vertexIdx, &vertex.u, 2);
+                        }
+                        if (normalAccessor) {
+                            cgltf_accessor_read_float(normalAccessor, vertexIdx, &vertex.nx, 3);
+                        }
+
+                        gltfPrim.m_vertexData.emplace_back(vertex);
+                    } // Iterating through the primitives.
+
+                    gltfMesh.m_primitives.emplace_back(gltfPrim);
+                } // Iterating through the meshes.
+            }
+
+            cgltf_free(data);
+        }
+
         // Create VAO.
         GLuint VAO;
         glCreateVertexArrays(1, &VAO);
@@ -305,24 +388,24 @@ private:
         // Create VBO.
         GLuint VBO;
         glCreateBuffers(1, &VBO);
-        glNamedBufferStorage(VBO, sizeof(MeshAttribute) * std::size(cube), &cube, 0);
+        glNamedBufferStorage(VBO, sizeof(MeshVertex) * std::size(cube), &cube, 0);
 
         // Attach the VBO to the VAO.
-        glVertexArrayVertexBuffer(VAO, 0, VBO, 0, sizeof(MeshAttribute));
+        glVertexArrayVertexBuffer(VAO, 0, VBO, 0, sizeof(MeshVertex));
 
         // Declare the Position Attribute.
         glEnableVertexArrayAttrib(VAO, 0);
-        glVertexArrayAttribFormat(VAO, 0, 3, GL_FLOAT, GL_FALSE, offsetof(MeshAttribute, x));
+        glVertexArrayAttribFormat(VAO, 0, 3, GL_FLOAT, GL_FALSE, offsetof(MeshVertex, x));
         glVertexArrayAttribBinding(VAO, 0, 0);
 
         // Declare the UV Attribute.
         glEnableVertexArrayAttrib(VAO, 1);
-        glVertexArrayAttribFormat(VAO, 1, 2, GL_FLOAT, GL_FALSE, offsetof(MeshAttribute, u));
+        glVertexArrayAttribFormat(VAO, 1, 2, GL_FLOAT, GL_FALSE, offsetof(MeshVertex, u));
         glVertexArrayAttribBinding(VAO, 1, 0);
 
         // Declare the Normal attribute
         glEnableVertexArrayAttrib(VAO, 2);
-        glVertexArrayAttribFormat(VAO, 2, 3, GL_FLOAT, GL_FALSE, offsetof(MeshAttribute, nx));
+        glVertexArrayAttribFormat(VAO, 2, 3, GL_FLOAT, GL_FALSE, offsetof(MeshVertex, nx));
         glVertexArrayAttribBinding(VAO, 2, 0);
 
         m_currentVAO = VAO;
