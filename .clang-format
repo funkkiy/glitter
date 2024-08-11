@@ -4,7 +4,7 @@ BasedOnStyle                              : WebKit
 Standard                                  : Auto
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-
 AlignTrailingComments                     : true
-ColumnLimit                               : 80
+ColumnLimit                               : 132
 Cpp11BracedListStyle                      : true
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-

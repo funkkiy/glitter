@@ -37,15 +37,12 @@ public:
 
         // Calculate total amount of bytes that will be pushed.
         size_t futureSize = m_buffer.size() + sizeof(T);
-        size_t paddingRequired = futureSize % m_alignment == 0
-            ? 0
-            : m_alignment - (futureSize % m_alignment);
+        size_t paddingRequired = futureSize % m_alignment == 0 ? 0 : m_alignment - (futureSize % m_alignment);
         size_t bytesRequired = futureSize + paddingRequired;
         m_buffer.reserve(m_buffer.size() + bytesRequired);
 
         // Push the object.
-        m_buffer.insert(m_buffer.end(), reinterpret_cast<uint8_t*>(&t),
-            reinterpret_cast<uint8_t*>(&t) + sizeof(T));
+        m_buffer.insert(m_buffer.end(), reinterpret_cast<uint8_t*>(&t), reinterpret_cast<uint8_t*>(&t) + sizeof(T));
 
         // Push the padding.
         m_buffer.resize(m_buffer.size() + paddingRequired);
@@ -114,8 +111,7 @@ private:
 #ifdef _DEBUG
         glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
 #endif
-        m_window = glfwCreateWindow(
-            m_windowWidth, m_windowHeight, "Glitter", nullptr, nullptr);
+        m_window = glfwCreateWindow(m_windowWidth, m_windowHeight, "Glitter", nullptr, nullptr);
         if (!m_window) {
             return InitializeResult::GlfwWindowError;
         }
@@ -123,56 +119,49 @@ private:
 
         // Resize the Viewport if the Window size changes.
         glfwSetWindowUserPointer(m_window, this);
-        glfwSetWindowSizeCallback(
-            m_window, [](GLFWwindow* window, int width, int height) {
-                auto app = static_cast<GlitterApplication*>(
-                    glfwGetWindowUserPointer(window));
-                app->m_windowWidth = width;
-                app->m_windowHeight = height;
-                glViewport(0, 0, width, height);
-            });
+        glfwSetWindowSizeCallback(m_window, [](GLFWwindow* window, int width, int height) {
+            auto app = static_cast<GlitterApplication*>(glfwGetWindowUserPointer(window));
+            app->m_windowWidth = width;
+            app->m_windowHeight = height;
+            glViewport(0, 0, width, height);
+        });
 
-        glfwSetKeyCallback(m_window,
-            [](GLFWwindow* window, int key, int /*scancode*/, int action,
-                int /*mods*/) {
-                auto app = static_cast<GlitterApplication*>(
-                    glfwGetWindowUserPointer(window));
-                switch (key) {
-                case GLFW_KEY_SPACE:
-                    if (action == GLFW_RELEASE) {
-                        // We only accept up to 999 cubes.
-                        if (app->m_cubes.size() >= 999) {
-                            break;
-                        }
-
-                        // The Model has to follow the Scale-Rotate-Translate
-                        // order.
-                        glm::mat4 model = glm::mat4(1.0f);
-                        model = glm::scale(model, glm::vec3(0.25f));
-                        model = glm::translate(model, glm::sphericalRand(6.0f));
-
-                        app->m_cubes.push_back(Cube {.m_position = model,
-                            .m_texture = app->m_loadedTextures[std::rand()
-                                % app->m_loadedTextures.size()]});
+        glfwSetKeyCallback(m_window, [](GLFWwindow* window, int key, int /*scancode*/, int action, int /*mods*/) {
+            auto app = static_cast<GlitterApplication*>(glfwGetWindowUserPointer(window));
+            switch (key) {
+            case GLFW_KEY_SPACE:
+                if (action == GLFW_RELEASE) {
+                    // We only accept up to 999 cubes.
+                    if (app->m_cubes.size() >= 999) {
+                        break;
                     }
-                    break;
-                case GLFW_KEY_ESCAPE:
-                    glfwSetWindowShouldClose(window, true);
-                    break;
-                default:
-                    break;
-                }
-            });
 
-        if (!gladLoadGLLoader(
-                reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
+                    // The Model has to follow the Scale-Rotate-Translate
+                    // order.
+                    glm::mat4 model = glm::mat4(1.0f);
+                    model = glm::scale(model, glm::vec3(0.25f));
+                    model = glm::translate(model, glm::sphericalRand(6.0f));
+
+                    app->m_cubes.push_back(
+                        Cube {.m_position = model, .m_texture = app->m_loadedTextures[std::rand() % app->m_loadedTextures.size()]});
+                }
+                break;
+            case GLFW_KEY_ESCAPE:
+                glfwSetWindowShouldClose(window, true);
+                break;
+            default:
+                break;
+            }
+        });
+
+        if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
             return InitializeResult::GladLoadError;
         }
 
         glfwSwapInterval(1);
 
         // Seed the RNG.
-        std::srand(std::time(nullptr));
+        std::srand(static_cast<unsigned int>(std::time(nullptr)));
 
         return InitializeResult::Ok;
     }
@@ -190,8 +179,7 @@ private:
         glEnable(GL_DEBUG_OUTPUT);
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
         glDebugMessageCallback(
-            [](GLenum source, GLenum type, GLuint /*id*/, GLenum /*severity*/,
-                GLsizei /*length*/, const GLchar* msg,
+            [](GLenum source, GLenum type, GLuint /*id*/, GLenum /*severity*/, GLsizei /*length*/, const GLchar* msg,
                 const void* /*userParam*/) {
                 switch (type) {
                 case GL_DEBUG_TYPE_ERROR:
@@ -221,8 +209,7 @@ private:
         };
 
         // Vertex Shader.
-        std::optional<std::string> vertexSrc
-            = Glitter::Util::ReadFile("shaders/VertexShader.glsl");
+        std::optional<std::string> vertexSrc = Glitter::Util::ReadFile("shaders/VertexShader.glsl");
         if (!vertexSrc) {
             return PrepareResult::ShaderLoadError;
         }
@@ -237,8 +224,7 @@ private:
         }
 
         // Fragment Shader.
-        std::optional<std::string> fragmentSrc
-            = Glitter::Util::ReadFile("shaders/FragShader.glsl");
+        std::optional<std::string> fragmentSrc = Glitter::Util::ReadFile("shaders/FragShader.glsl");
         if (!fragmentSrc) {
             return PrepareResult::ShaderLoadError;
         }
@@ -275,294 +261,42 @@ private:
             float u, v;
             float nx, ny, nz;
         };
-        MeshAttribute cube[] {{.x = -0.5f,
-                                  .y = -0.5f,
-                                  .z = -0.5f,
-                                  .u = +0.0f,
-                                  .v = +0.0f,
-                                  .nx = +0.0f,
-                                  .ny = +0.0f,
-                                  .nz = -1.0f},
-            {.x = +0.5f,
-                .y = -0.5f,
-                .z = -0.5f,
-                .u = +1.0f,
-                .v = +0.0f,
-                .nx = +0.0f,
-                .ny = +0.0f,
-                .nz = -1.0f},
-            {.x = +0.5f,
-                .y = +0.5f,
-                .z = -0.5f,
-                .u = +1.0f,
-                .v = +1.0f,
-                .nx = +0.0f,
-                .ny = +0.0f,
-                .nz = -1.0f},
-            {.x = +0.5f,
-                .y = +0.5f,
-                .z = -0.5f,
-                .u = +1.0f,
-                .v = +1.0f,
-                .nx = +0.0f,
-                .ny = +0.0f,
-                .nz = -1.0f},
-            {.x = -0.5f,
-                .y = +0.5f,
-                .z = -0.5f,
-                .u = +0.0f,
-                .v = +1.0f,
-                .nx = +0.0f,
-                .ny = +0.0f,
-                .nz = -1.0f},
-            {.x = -0.5f,
-                .y = -0.5f,
-                .z = -0.5f,
-                .u = +0.0f,
-                .v = +0.0f,
-                .nx = +0.0f,
-                .ny = +0.0f,
-                .nz = -1.0f},
-            {.x = -0.5f,
-                .y = -0.5f,
-                .z = +0.5f,
-                .u = +0.0f,
-                .v = +0.0f,
-                .nx = +0.0f,
-                .ny = +0.0f,
-                .nz = +1.0f},
-            {.x = +0.5f,
-                .y = -0.5f,
-                .z = +0.5f,
-                .u = +1.0f,
-                .v = +0.0f,
-                .nx = +0.0f,
-                .ny = +0.0f,
-                .nz = +1.0f},
-            {.x = +0.5f,
-                .y = +0.5f,
-                .z = +0.5f,
-                .u = +1.0f,
-                .v = +1.0f,
-                .nx = +0.0f,
-                .ny = +0.0f,
-                .nz = +1.0f},
-            {.x = +0.5f,
-                .y = +0.5f,
-                .z = +0.5f,
-                .u = +1.0f,
-                .v = +1.0f,
-                .nx = +0.0f,
-                .ny = +0.0f,
-                .nz = +1.0f},
-            {.x = -0.5f,
-                .y = +0.5f,
-                .z = +0.5f,
-                .u = +0.0f,
-                .v = +1.0f,
-                .nx = +0.0f,
-                .ny = +0.0f,
-                .nz = +1.0f},
-            {.x = -0.5f,
-                .y = -0.5f,
-                .z = +0.5f,
-                .u = +0.0f,
-                .v = +0.0f,
-                .nx = +0.0f,
-                .ny = +0.0f,
-                .nz = +1.0f},
-            {.x = -0.5f,
-                .y = +0.5f,
-                .z = +0.5f,
-                .u = +1.0f,
-                .v = +0.0f,
-                .nx = -1.0f,
-                .ny = +0.0f,
-                .nz = +0.0f},
-            {.x = -0.5f,
-                .y = +0.5f,
-                .z = -0.5f,
-                .u = +1.0f,
-                .v = +1.0f,
-                .nx = -1.0f,
-                .ny = +0.0f,
-                .nz = +0.0f},
-            {.x = -0.5f,
-                .y = -0.5f,
-                .z = -0.5f,
-                .u = +0.0f,
-                .v = +1.0f,
-                .nx = -1.0f,
-                .ny = +0.0f,
-                .nz = +0.0f},
-            {.x = -0.5f,
-                .y = -0.5f,
-                .z = -0.5f,
-                .u = +0.0f,
-                .v = +1.0f,
-                .nx = -1.0f,
-                .ny = +0.0f,
-                .nz = +0.0f},
-            {.x = -0.5f,
-                .y = -0.5f,
-                .z = +0.5f,
-                .u = +0.0f,
-                .v = +0.0f,
-                .nx = -1.0f,
-                .ny = +0.0f,
-                .nz = +0.0f},
-            {.x = -0.5f,
-                .y = +0.5f,
-                .z = +0.5f,
-                .u = +1.0f,
-                .v = +0.0f,
-                .nx = -1.0f,
-                .ny = +0.0f,
-                .nz = +0.0f},
-            {.x = +0.5f,
-                .y = +0.5f,
-                .z = +0.5f,
-                .u = +1.0f,
-                .v = +0.0f,
-                .nx = +1.0f,
-                .ny = +0.0f,
-                .nz = +0.0f},
-            {.x = +0.5f,
-                .y = +0.5f,
-                .z = -0.5f,
-                .u = +1.0f,
-                .v = +1.0f,
-                .nx = +1.0f,
-                .ny = +0.0f,
-                .nz = +0.0f},
-            {.x = +0.5f,
-                .y = -0.5f,
-                .z = -0.5f,
-                .u = +0.0f,
-                .v = +1.0f,
-                .nx = +1.0f,
-                .ny = +0.0f,
-                .nz = +0.0f},
-            {.x = +0.5f,
-                .y = -0.5f,
-                .z = -0.5f,
-                .u = +0.0f,
-                .v = +1.0f,
-                .nx = +1.0f,
-                .ny = +0.0f,
-                .nz = +0.0f},
-            {.x = +0.5f,
-                .y = -0.5f,
-                .z = +0.5f,
-                .u = +0.0f,
-                .v = +0.0f,
-                .nx = +1.0f,
-                .ny = +0.0f,
-                .nz = +0.0f},
-            {.x = +0.5f,
-                .y = +0.5f,
-                .z = +0.5f,
-                .u = +1.0f,
-                .v = +0.0f,
-                .nx = +1.0f,
-                .ny = +0.0f,
-                .nz = +0.0f},
-            {.x = -0.5f,
-                .y = -0.5f,
-                .z = -0.5f,
-                .u = +0.0f,
-                .v = +1.0f,
-                .nx = +0.0f,
-                .ny = -1.0f,
-                .nz = +0.0f},
-            {.x = +0.5f,
-                .y = -0.5f,
-                .z = -0.5f,
-                .u = +1.0f,
-                .v = +1.0f,
-                .nx = +0.0f,
-                .ny = -1.0f,
-                .nz = +0.0f},
-            {.x = +0.5f,
-                .y = -0.5f,
-                .z = +0.5f,
-                .u = +1.0f,
-                .v = +0.0f,
-                .nx = +0.0f,
-                .ny = -1.0f,
-                .nz = +0.0f},
-            {.x = +0.5f,
-                .y = -0.5f,
-                .z = +0.5f,
-                .u = +1.0f,
-                .v = +0.0f,
-                .nx = +0.0f,
-                .ny = -1.0f,
-                .nz = +0.0f},
-            {.x = -0.5f,
-                .y = -0.5f,
-                .z = +0.5f,
-                .u = +0.0f,
-                .v = +0.0f,
-                .nx = +0.0f,
-                .ny = -1.0f,
-                .nz = +0.0f},
-            {.x = -0.5f,
-                .y = -0.5f,
-                .z = -0.5f,
-                .u = +0.0f,
-                .v = +1.0f,
-                .nx = +0.0f,
-                .ny = -1.0f,
-                .nz = +0.0f},
-            {.x = -0.5f,
-                .y = +0.5f,
-                .z = -0.5f,
-                .u = +0.0f,
-                .v = +1.0f,
-                .nx = +0.0f,
-                .ny = +1.0f,
-                .nz = +0.0f},
-            {.x = +0.5f,
-                .y = +0.5f,
-                .z = -0.5f,
-                .u = +1.0f,
-                .v = +1.0f,
-                .nx = +0.0f,
-                .ny = +1.0f,
-                .nz = +0.0f},
-            {.x = +0.5f,
-                .y = +0.5f,
-                .z = +0.5f,
-                .u = +1.0f,
-                .v = +0.0f,
-                .nx = +0.0f,
-                .ny = +1.0f,
-                .nz = +0.0f},
-            {.x = +0.5f,
-                .y = +0.5f,
-                .z = +0.5f,
-                .u = +1.0f,
-                .v = +0.0f,
-                .nx = +0.0f,
-                .ny = +1.0f,
-                .nz = +0.0f},
-            {.x = -0.5f,
-                .y = +0.5f,
-                .z = +0.5f,
-                .u = +0.0f,
-                .v = +0.0f,
-                .nx = +0.0f,
-                .ny = +1.0f,
-                .nz = +0.0f},
-            {.x = -0.5f,
-                .y = +0.5f,
-                .z = -0.5f,
-                .u = +0.0f,
-                .v = +1.0f,
-                .nx = +0.0f,
-                .ny = +1.0f,
-                .nz = +0.0f}};
+        MeshAttribute cube[] {{.x = -0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +0.0f, .nx = +0.0f, .ny = +0.0f, .nz = -1.0f},
+            {.x = +0.5f, .y = -0.5f, .z = -0.5f, .u = +1.0f, .v = +0.0f, .nx = +0.0f, .ny = +0.0f, .nz = -1.0f},
+            {.x = +0.5f, .y = +0.5f, .z = -0.5f, .u = +1.0f, .v = +1.0f, .nx = +0.0f, .ny = +0.0f, .nz = -1.0f},
+            {.x = +0.5f, .y = +0.5f, .z = -0.5f, .u = +1.0f, .v = +1.0f, .nx = +0.0f, .ny = +0.0f, .nz = -1.0f},
+            {.x = -0.5f, .y = +0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f, .nx = +0.0f, .ny = +0.0f, .nz = -1.0f},
+            {.x = -0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +0.0f, .nx = +0.0f, .ny = +0.0f, .nz = -1.0f},
+            {.x = -0.5f, .y = -0.5f, .z = +0.5f, .u = +0.0f, .v = +0.0f, .nx = +0.0f, .ny = +0.0f, .nz = +1.0f},
+            {.x = +0.5f, .y = -0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f, .nx = +0.0f, .ny = +0.0f, .nz = +1.0f},
+            {.x = +0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +1.0f, .nx = +0.0f, .ny = +0.0f, .nz = +1.0f},
+            {.x = +0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +1.0f, .nx = +0.0f, .ny = +0.0f, .nz = +1.0f},
+            {.x = -0.5f, .y = +0.5f, .z = +0.5f, .u = +0.0f, .v = +1.0f, .nx = +0.0f, .ny = +0.0f, .nz = +1.0f},
+            {.x = -0.5f, .y = -0.5f, .z = +0.5f, .u = +0.0f, .v = +0.0f, .nx = +0.0f, .ny = +0.0f, .nz = +1.0f},
+            {.x = -0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f, .nx = -1.0f, .ny = +0.0f, .nz = +0.0f},
+            {.x = -0.5f, .y = +0.5f, .z = -0.5f, .u = +1.0f, .v = +1.0f, .nx = -1.0f, .ny = +0.0f, .nz = +0.0f},
+            {.x = -0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f, .nx = -1.0f, .ny = +0.0f, .nz = +0.0f},
+            {.x = -0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f, .nx = -1.0f, .ny = +0.0f, .nz = +0.0f},
+            {.x = -0.5f, .y = -0.5f, .z = +0.5f, .u = +0.0f, .v = +0.0f, .nx = -1.0f, .ny = +0.0f, .nz = +0.0f},
+            {.x = -0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f, .nx = -1.0f, .ny = +0.0f, .nz = +0.0f},
+            {.x = +0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f, .nx = +1.0f, .ny = +0.0f, .nz = +0.0f},
+            {.x = +0.5f, .y = +0.5f, .z = -0.5f, .u = +1.0f, .v = +1.0f, .nx = +1.0f, .ny = +0.0f, .nz = +0.0f},
+            {.x = +0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f, .nx = +1.0f, .ny = +0.0f, .nz = +0.0f},
+            {.x = +0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f, .nx = +1.0f, .ny = +0.0f, .nz = +0.0f},
+            {.x = +0.5f, .y = -0.5f, .z = +0.5f, .u = +0.0f, .v = +0.0f, .nx = +1.0f, .ny = +0.0f, .nz = +0.0f},
+            {.x = +0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f, .nx = +1.0f, .ny = +0.0f, .nz = +0.0f},
+            {.x = -0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f, .nx = +0.0f, .ny = -1.0f, .nz = +0.0f},
+            {.x = +0.5f, .y = -0.5f, .z = -0.5f, .u = +1.0f, .v = +1.0f, .nx = +0.0f, .ny = -1.0f, .nz = +0.0f},
+            {.x = +0.5f, .y = -0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f, .nx = +0.0f, .ny = -1.0f, .nz = +0.0f},
+            {.x = +0.5f, .y = -0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f, .nx = +0.0f, .ny = -1.0f, .nz = +0.0f},
+            {.x = -0.5f, .y = -0.5f, .z = +0.5f, .u = +0.0f, .v = +0.0f, .nx = +0.0f, .ny = -1.0f, .nz = +0.0f},
+            {.x = -0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f, .nx = +0.0f, .ny = -1.0f, .nz = +0.0f},
+            {.x = -0.5f, .y = +0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f, .nx = +0.0f, .ny = +1.0f, .nz = +0.0f},
+            {.x = +0.5f, .y = +0.5f, .z = -0.5f, .u = +1.0f, .v = +1.0f, .nx = +0.0f, .ny = +1.0f, .nz = +0.0f},
+            {.x = +0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f, .nx = +0.0f, .ny = +1.0f, .nz = +0.0f},
+            {.x = +0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f, .nx = +0.0f, .ny = +1.0f, .nz = +0.0f},
+            {.x = -0.5f, .y = +0.5f, .z = +0.5f, .u = +0.0f, .v = +0.0f, .nx = +0.0f, .ny = +1.0f, .nz = +0.0f},
+            {.x = -0.5f, .y = +0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f, .nx = +0.0f, .ny = +1.0f, .nz = +0.0f}};
 
         // Create VAO.
         GLuint VAO;
@@ -571,28 +305,24 @@ private:
         // Create VBO.
         GLuint VBO;
         glCreateBuffers(1, &VBO);
-        glNamedBufferStorage(
-            VBO, sizeof(MeshAttribute) * std::size(cube), &cube, 0);
+        glNamedBufferStorage(VBO, sizeof(MeshAttribute) * std::size(cube), &cube, 0);
 
         // Attach the VBO to the VAO.
         glVertexArrayVertexBuffer(VAO, 0, VBO, 0, sizeof(MeshAttribute));
 
         // Declare the Position Attribute.
         glEnableVertexArrayAttrib(VAO, 0);
-        glVertexArrayAttribFormat(
-            VAO, 0, 3, GL_FLOAT, GL_FALSE, offsetof(MeshAttribute, x));
+        glVertexArrayAttribFormat(VAO, 0, 3, GL_FLOAT, GL_FALSE, offsetof(MeshAttribute, x));
         glVertexArrayAttribBinding(VAO, 0, 0);
 
         // Declare the UV Attribute.
         glEnableVertexArrayAttrib(VAO, 1);
-        glVertexArrayAttribFormat(
-            VAO, 1, 2, GL_FLOAT, GL_FALSE, offsetof(MeshAttribute, u));
+        glVertexArrayAttribFormat(VAO, 1, 2, GL_FLOAT, GL_FALSE, offsetof(MeshAttribute, u));
         glVertexArrayAttribBinding(VAO, 1, 0);
 
         // Declare the Normal attribute
         glEnableVertexArrayAttrib(VAO, 2);
-        glVertexArrayAttribFormat(
-            VAO, 2, 3, GL_FLOAT, GL_FALSE, offsetof(MeshAttribute, nx));
+        glVertexArrayAttribFormat(VAO, 2, 3, GL_FLOAT, GL_FALSE, offsetof(MeshAttribute, nx));
         glVertexArrayAttribBinding(VAO, 2, 0);
 
         m_currentVAO = VAO;
@@ -602,13 +332,11 @@ private:
         glCreateBuffers(1, &ubo);
 
         // Just enough for the Common stuff and 999 Cubes.
-        glNamedBufferData(ubo, sizeof(CommonData) + (sizeof(PerDrawData) * 999),
-            nullptr, GL_DYNAMIC_DRAW);
+        glNamedBufferData(ubo, sizeof(CommonData) + (sizeof(PerDrawData) * 999), nullptr, GL_DYNAMIC_DRAW);
         m_currentUBO = ubo;
 
         // Load some Cube textures.
-        std::array texturePaths(std::to_array<const char*>(
-            {"textures/Tile.png", "textures/Cobble.png"}));
+        std::array texturePaths(std::to_array<const char*>({"textures/Tile.png", "textures/Cobble.png"}));
 
         for (auto& path : texturePaths) {
             GLuint texture {};
@@ -619,12 +347,10 @@ private:
             glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
             int width, height, nChannels;
-            unsigned char* textureData
-                = stbi_load(path, &width, &height, &nChannels, 4);
+            unsigned char* textureData = stbi_load(path, &width, &height, &nChannels, 4);
             if (textureData) {
                 glTextureStorage2D(texture, 1, GL_RGBA8, width, height);
-                glTextureSubImage2D(texture, 0, 0, 0, width, height, GL_RGBA,
-                    GL_UNSIGNED_BYTE, textureData);
+                glTextureSubImage2D(texture, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, textureData);
                 glGenerateTextureMipmap(texture);
             }
             stbi_image_free(textureData);
@@ -643,12 +369,9 @@ private:
 
         // Calculate View and Projection.
         glm::vec3 eyePos = glm::vec3(0.0f, 2.5f, -3.5f);
-        glm::mat4 view = glm::lookAt(
-            eyePos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        glm::mat4 projection = glm::perspective(glm::radians(45.0f),
-            static_cast<float>(m_windowWidth)
-                / static_cast<float>(m_windowHeight),
-            0.1f, 100.0f);
+        glm::mat4 view = glm::lookAt(eyePos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 projection = glm::perspective(
+            glm::radians(45.0f), static_cast<float>(m_windowWidth) / static_cast<float>(m_windowHeight), 0.1f, 100.0f);
         m_currentView = view;
         m_currentProjection = projection;
 
@@ -657,8 +380,7 @@ private:
             .m_projection = projection,
             .m_eyePos = glm::vec4(eyePos, 1.0),
             .m_lightPos = glm::vec4(1.0, 0.5, -0.5, 1.0),
-            .m_lightColor = glm::vec4(1.0, 0.0, 0.0, 1.0)
-        };
+            .m_lightColor = glm::vec4(1.0, 0.0, 0.0, 1.0)};
         m_uboAllocator.Push(commonData);
 
         // Write each Cube's PerDrawData into the buffer.
@@ -668,8 +390,7 @@ private:
         }
 
         // Upload the CPU-backing buffer into the UBO.
-        glNamedBufferSubData(m_currentUBO, 0,
-            sizeof(uint8_t) * m_uboAllocator.Size(), m_uboAllocator.Data());
+        glNamedBufferSubData(m_currentUBO, 0, sizeof(uint8_t) * m_uboAllocator.Size(), m_uboAllocator.Data());
 
         // Bind the Program and VAO.
         glUseProgram(m_currentProgram);
@@ -678,12 +399,10 @@ private:
         // Render each Cube.
         for (int i = 0; i < m_cubes.size(); i++) {
             // Bind the Common UBO data into the first slot of the UBO.
-            glBindBufferRange(
-                GL_UNIFORM_BUFFER, 0, m_currentUBO, 0, sizeof(CommonData));
+            glBindBufferRange(GL_UNIFORM_BUFFER, 0, m_currentUBO, 0, sizeof(CommonData));
 
             // Bind the Per-Draw UBO data into the second slot of the UBO.
-            glBindBufferRange(GL_UNIFORM_BUFFER, 1, m_currentUBO,
-                m_uboAllocator.GetAlignment() * (i + 1), sizeof(PerDrawData));
+            glBindBufferRange(GL_UNIFORM_BUFFER, 1, m_currentUBO, m_uboAllocator.GetAlignment() * (i + 1), sizeof(PerDrawData));
 
             // Bind the texture.
             glBindTextureUnit(0, m_cubes[i].m_texture);
