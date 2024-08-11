@@ -41,7 +41,7 @@ public:
             ? 0
             : m_alignment - (futureSize % m_alignment);
         size_t bytesRequired = futureSize + paddingRequired;
-        m_buffer.reserve(m_buffer.size() + futureSize);
+        m_buffer.reserve(m_buffer.size() + bytesRequired);
 
         // Push the object.
         m_buffer.insert(m_buffer.end(), reinterpret_cast<uint8_t*>(&t),
