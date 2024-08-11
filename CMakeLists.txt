@@ -53,6 +53,8 @@ add_subdirectory(vendor/glfw)
 # spdlog
 set(SPDLOG_ENABLE_PCH ON CACHE BOOL "" FORCE)
 add_subdirectory(vendor/spdlog)
+# disable upstream spdlog warnings
+set_property(TARGET spdlog PROPERTY SYSTEM TRUE)
 
 # glm
 add_subdirectory(vendor/glm)
