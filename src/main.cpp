@@ -306,19 +306,20 @@ private:
 
         // build a vertex buffer from the mesh data ...
 
+        struct GltfPrimitive {
+            std::vector<MeshVertex> m_vertexData;
+            // (TODO): m_indices;
+        };
+
+        struct GltfMesh {
+            std::vector<GltfPrimitive> m_primitives;
+        };
+
+        std::vector<GltfMesh> parsedMeshes;
+
         if (result == cgltf_result_success) {
             // Iterate through each meshes, then through its primitives and their attributes, creating one VBO per primitive and
             // filling it with data pointed by the attribute buffer views. A mesh can have several primitives.
-
-            struct GltfPrimitive {
-                std::vector<MeshVertex> m_vertexData;
-            };
-
-            struct GltfMesh {
-                std::vector<GltfPrimitive> m_primitives;
-            };
-
-            std::vector<GltfMesh> parsedMeshes;
             for (int meshIdx = 0; meshIdx < data->meshes_count; meshIdx++) {
                 cgltf_mesh mesh = data->meshes[meshIdx];
 
@@ -376,6 +377,8 @@ private:
 
                     gltfMesh.m_primitives.emplace_back(gltfPrim);
                 } // Iterating through the meshes.
+
+                parsedMeshes.emplace_back(gltfMesh);
             }
 
             cgltf_free(data);
@@ -388,7 +391,8 @@ private:
         // Create VBO.
         GLuint VBO;
         glCreateBuffers(1, &VBO);
-        glNamedBufferStorage(VBO, sizeof(MeshVertex) * std::size(cube), &cube, 0);
+        glNamedBufferStorage(VBO, sizeof(MeshVertex) * parsedMeshes[0].m_primitives[0].m_vertexData.size(),
+            parsedMeshes[0].m_primitives[0].m_vertexData.data(), 0);
 
         // Attach the VBO to the VAO.
         glVertexArrayVertexBuffer(VAO, 0, VBO, 0, sizeof(MeshVertex));
@@ -491,7 +495,7 @@ private:
             glBindTextureUnit(0, m_cubes[i].m_texture);
 
             // Draw the Cube!
-            glDrawArrays(GL_TRIANGLES, 0, 36);
+            glDrawArrays(GL_TRIANGLES, 0, 4690);
         }
 
         glfwSwapBuffers(m_window);
