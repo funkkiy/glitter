@@ -308,7 +308,7 @@ private:
 
         struct GltfPrimitive {
             std::vector<MeshVertex> m_vertexData;
-            // (TODO): m_indices;
+            std::vector<uint32_t> m_vertexIndices;
         };
 
         struct GltfMesh {
@@ -373,13 +373,17 @@ private:
                         }
 
                         gltfPrim.m_vertexData.emplace_back(vertex);
-                    } // Iterating through the primitives.
+                    }
+
+                    for (int indexIdx = 0; indexIdx < prim.indices->count; indexIdx++) {
+                        gltfPrim.m_vertexIndices.emplace_back(cgltf_accessor_read_index(prim.indices, indexIdx));
+                    }
 
                     gltfMesh.m_primitives.emplace_back(gltfPrim);
-                } // Iterating through the meshes.
+                } // Iterating through the primitives.
 
                 parsedMeshes.emplace_back(gltfMesh);
-            }
+            } // Iterating through the meshes.
 
             cgltf_free(data);
         }
@@ -394,8 +398,19 @@ private:
         glNamedBufferStorage(VBO, sizeof(MeshVertex) * parsedMeshes[0].m_primitives[0].m_vertexData.size(),
             parsedMeshes[0].m_primitives[0].m_vertexData.data(), 0);
 
+        // Create EBO.
+        GLuint EBO;
+        glCreateBuffers(1, &EBO);
+        glNamedBufferStorage(EBO, sizeof(uint32_t) * parsedMeshes[0].m_primitives[0].m_vertexIndices.size(),
+            parsedMeshes[0].m_primitives[0].m_vertexIndices.data(), 0);
+
         // Attach the VBO to the VAO.
         glVertexArrayVertexBuffer(VAO, 0, VBO, 0, sizeof(MeshVertex));
+
+        // Attach the EBO to the VAO.
+        glVertexArrayElementBuffer(VAO, EBO);
+
+        m_currentEBO = EBO;
 
         // Declare the Position Attribute.
         glEnableVertexArrayAttrib(VAO, 0);
@@ -495,7 +510,7 @@ private:
             glBindTextureUnit(0, m_cubes[i].m_texture);
 
             // Draw the Cube!
-            glDrawArrays(GL_TRIANGLES, 0, 4690);
+            glDrawElements(GL_TRIANGLES, 27384, GL_UNSIGNED_INT, 0);
         }
 
         glfwSwapBuffers(m_window);
@@ -512,6 +527,7 @@ private:
     GLuint m_currentProgram {};
     GLuint m_currentVAO {};
     GLuint m_currentUBO {};
+    GLuint m_currentEBO {};
 
     uint32_t m_windowWidth {640};
     uint32_t m_windowHeight {480};
