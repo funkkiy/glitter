@@ -388,6 +388,9 @@ private:
             cgltf_free(data);
         }
 
+        // (TODO): Create VBO, EBO for each Mesh primitive, and link them into the original Mesh structure. In the renderer, go
+        // through each Mesh's primitive and glDrawElements() ...
+
         // Create VAO.
         GLuint VAO;
         glCreateVertexArrays(1, &VAO);
