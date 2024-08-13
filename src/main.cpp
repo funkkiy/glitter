@@ -66,6 +66,25 @@ private:
     GLint m_alignment {};
 };
 
+struct Primitive {
+    GLuint m_vbo;
+    GLuint m_ebo;
+    GLuint m_baseTexture;
+    uint64_t m_elementCount;
+};
+
+struct Mesh {
+    glm::mat4 m_position;
+    std::vector<Primitive> m_primitives;
+};
+
+// Vertex Attributes!
+struct MeshVertex {
+    float x, y, z;
+    float u, v;
+    float nx, ny, nz;
+};
+
 class GlitterApplication {
 public:
     void Run()
@@ -132,7 +151,7 @@ private:
             case GLFW_KEY_SPACE:
                 if (action == GLFW_RELEASE) {
                     // We only accept up to 999 cubes.
-                    if (app->m_cubes.size() >= 999) {
+                    if (app->m_nodes.size() >= 999) {
                         break;
                     }
 
@@ -142,8 +161,8 @@ private:
                     model = glm::scale(model, glm::vec3(0.25f));
                     model = glm::translate(model, glm::sphericalRand(6.0f));
 
-                    app->m_cubes.push_back(
-                        Cube {.m_position = model, .m_texture = app->m_loadedTextures[std::rand() % app->m_loadedTextures.size()]});
+                    app->m_nodes.push_back(
+                        Node {.m_position = model, .m_texture = app->m_loadedTextures[std::rand() % app->m_loadedTextures.size()], .m_meshID = std::rand() % app->m_meshes.size()});
                 }
                 break;
             case GLFW_KEY_ESCAPE:
@@ -255,165 +274,123 @@ private:
         }
         m_currentProgram = shaderProgram;
 
-        // Cube!
-        struct MeshVertex {
-            float x, y, z;
-            float u, v;
-            float nx, ny, nz;
-        };
-        MeshVertex cube[] {{.x = -0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +0.0f, .nx = +0.0f, .ny = +0.0f, .nz = -1.0f},
-            {.x = +0.5f, .y = -0.5f, .z = -0.5f, .u = +1.0f, .v = +0.0f, .nx = +0.0f, .ny = +0.0f, .nz = -1.0f},
-            {.x = +0.5f, .y = +0.5f, .z = -0.5f, .u = +1.0f, .v = +1.0f, .nx = +0.0f, .ny = +0.0f, .nz = -1.0f},
-            {.x = +0.5f, .y = +0.5f, .z = -0.5f, .u = +1.0f, .v = +1.0f, .nx = +0.0f, .ny = +0.0f, .nz = -1.0f},
-            {.x = -0.5f, .y = +0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f, .nx = +0.0f, .ny = +0.0f, .nz = -1.0f},
-            {.x = -0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +0.0f, .nx = +0.0f, .ny = +0.0f, .nz = -1.0f},
-            {.x = -0.5f, .y = -0.5f, .z = +0.5f, .u = +0.0f, .v = +0.0f, .nx = +0.0f, .ny = +0.0f, .nz = +1.0f},
-            {.x = +0.5f, .y = -0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f, .nx = +0.0f, .ny = +0.0f, .nz = +1.0f},
-            {.x = +0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +1.0f, .nx = +0.0f, .ny = +0.0f, .nz = +1.0f},
-            {.x = +0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +1.0f, .nx = +0.0f, .ny = +0.0f, .nz = +1.0f},
-            {.x = -0.5f, .y = +0.5f, .z = +0.5f, .u = +0.0f, .v = +1.0f, .nx = +0.0f, .ny = +0.0f, .nz = +1.0f},
-            {.x = -0.5f, .y = -0.5f, .z = +0.5f, .u = +0.0f, .v = +0.0f, .nx = +0.0f, .ny = +0.0f, .nz = +1.0f},
-            {.x = -0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f, .nx = -1.0f, .ny = +0.0f, .nz = +0.0f},
-            {.x = -0.5f, .y = +0.5f, .z = -0.5f, .u = +1.0f, .v = +1.0f, .nx = -1.0f, .ny = +0.0f, .nz = +0.0f},
-            {.x = -0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f, .nx = -1.0f, .ny = +0.0f, .nz = +0.0f},
-            {.x = -0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f, .nx = -1.0f, .ny = +0.0f, .nz = +0.0f},
-            {.x = -0.5f, .y = -0.5f, .z = +0.5f, .u = +0.0f, .v = +0.0f, .nx = -1.0f, .ny = +0.0f, .nz = +0.0f},
-            {.x = -0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f, .nx = -1.0f, .ny = +0.0f, .nz = +0.0f},
-            {.x = +0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f, .nx = +1.0f, .ny = +0.0f, .nz = +0.0f},
-            {.x = +0.5f, .y = +0.5f, .z = -0.5f, .u = +1.0f, .v = +1.0f, .nx = +1.0f, .ny = +0.0f, .nz = +0.0f},
-            {.x = +0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f, .nx = +1.0f, .ny = +0.0f, .nz = +0.0f},
-            {.x = +0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f, .nx = +1.0f, .ny = +0.0f, .nz = +0.0f},
-            {.x = +0.5f, .y = -0.5f, .z = +0.5f, .u = +0.0f, .v = +0.0f, .nx = +1.0f, .ny = +0.0f, .nz = +0.0f},
-            {.x = +0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f, .nx = +1.0f, .ny = +0.0f, .nz = +0.0f},
-            {.x = -0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f, .nx = +0.0f, .ny = -1.0f, .nz = +0.0f},
-            {.x = +0.5f, .y = -0.5f, .z = -0.5f, .u = +1.0f, .v = +1.0f, .nx = +0.0f, .ny = -1.0f, .nz = +0.0f},
-            {.x = +0.5f, .y = -0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f, .nx = +0.0f, .ny = -1.0f, .nz = +0.0f},
-            {.x = +0.5f, .y = -0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f, .nx = +0.0f, .ny = -1.0f, .nz = +0.0f},
-            {.x = -0.5f, .y = -0.5f, .z = +0.5f, .u = +0.0f, .v = +0.0f, .nx = +0.0f, .ny = -1.0f, .nz = +0.0f},
-            {.x = -0.5f, .y = -0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f, .nx = +0.0f, .ny = -1.0f, .nz = +0.0f},
-            {.x = -0.5f, .y = +0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f, .nx = +0.0f, .ny = +1.0f, .nz = +0.0f},
-            {.x = +0.5f, .y = +0.5f, .z = -0.5f, .u = +1.0f, .v = +1.0f, .nx = +0.0f, .ny = +1.0f, .nz = +0.0f},
-            {.x = +0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f, .nx = +0.0f, .ny = +1.0f, .nz = +0.0f},
-            {.x = +0.5f, .y = +0.5f, .z = +0.5f, .u = +1.0f, .v = +0.0f, .nx = +0.0f, .ny = +1.0f, .nz = +0.0f},
-            {.x = -0.5f, .y = +0.5f, .z = +0.5f, .u = +0.0f, .v = +0.0f, .nx = +0.0f, .ny = +1.0f, .nz = +0.0f},
-            {.x = -0.5f, .y = +0.5f, .z = -0.5f, .u = +0.0f, .v = +1.0f, .nx = +0.0f, .ny = +1.0f, .nz = +0.0f}};
-
         // glTF mesh!
-        cgltf_options options {};
-        cgltf_data* data = nullptr;
-        cgltf_result result = cgltf_parse_file(&options, "meshes/teapot.gltf", &data);
-        cgltf_load_buffers(&options, data, "meshes/teapot.gltf");
+        std::array meshPaths(std::to_array<const char*>({"meshes/Cube.gltf", "meshes/Teapot.gltf"}));
+        for (auto& path : meshPaths) {
+            cgltf_options options {};
+            cgltf_data* data = nullptr;
+            cgltf_result result = cgltf_parse_file(&options, path, &data);
+            cgltf_load_buffers(&options, data, path);
 
-        // build a vertex buffer from the mesh data ...
+            // Build the VBO for the loaded mesh.
+            struct GltfPrimitive {
+                std::vector<MeshVertex> m_vertexData;
+                std::vector<uint32_t> m_vertexIndices;
+            };
 
-        struct GltfPrimitive {
-            std::vector<MeshVertex> m_vertexData;
-            std::vector<uint32_t> m_vertexIndices;
-        };
+            struct GltfMesh {
+                std::vector<GltfPrimitive> m_primitives;
+            };
 
-        struct GltfMesh {
-            std::vector<GltfPrimitive> m_primitives;
-        };
+            Mesh mesh {};
+            std::vector<GltfMesh> parsedMeshes;
+            if (result == cgltf_result_success) {
+                // Iterate through each meshes, then through its primitives and their attributes, creating one VBO per primitive and
+                // filling it with data pointed by the attribute buffer views. A mesh can have several primitives.
+                for (int meshIdx = 0; meshIdx < data->meshes_count; meshIdx++) {
+                    cgltf_mesh mesh = data->meshes[meshIdx];
 
-        std::vector<GltfMesh> parsedMeshes;
+                    GltfMesh gltfMesh {};
+                    for (int primIdx = 0; primIdx < mesh.primitives_count; primIdx++) {
+                        cgltf_primitive prim = mesh.primitives[primIdx];
 
-        if (result == cgltf_result_success) {
-            // Iterate through each meshes, then through its primitives and their attributes, creating one VBO per primitive and
-            // filling it with data pointed by the attribute buffer views. A mesh can have several primitives.
-            for (int meshIdx = 0; meshIdx < data->meshes_count; meshIdx++) {
-                cgltf_mesh mesh = data->meshes[meshIdx];
+                        size_t vertexCount {0};
+                        // Fill out the accessor pointers.
+                        cgltf_accessor* positionAccessor = nullptr;
+                        cgltf_accessor* texCoordAccessor = nullptr;
+                        cgltf_accessor* normalAccessor = nullptr;
+                        for (int attribIdx = 0; attribIdx < prim.attributes_count; attribIdx++) {
+                            cgltf_attribute attrib = prim.attributes[attribIdx];
 
-                GltfMesh gltfMesh {};
-                for (int primIdx = 0; primIdx < mesh.primitives_count; primIdx++) {
-                    cgltf_primitive prim = mesh.primitives[primIdx];
-
-                    size_t vertexCount {0};
-                    // Fill out the accessor pointers.
-                    cgltf_accessor* positionAccessor = nullptr;
-                    cgltf_accessor* texCoordAccessor = nullptr;
-                    cgltf_accessor* normalAccessor = nullptr;
-                    for (int attribIdx = 0; attribIdx < prim.attributes_count; attribIdx++) {
-                        cgltf_attribute attrib = prim.attributes[attribIdx];
-
-                        switch (attrib.type) {
-                        case cgltf_attribute_type_position:
-                            vertexCount = attrib.data->count;
-                            if (attrib.data->component_type == cgltf_component_type_r_32f) {
-                                positionAccessor = attrib.data;
+                            switch (attrib.type) {
+                            case cgltf_attribute_type_position:
+                                vertexCount = attrib.data->count;
+                                if (attrib.data->component_type == cgltf_component_type_r_32f) {
+                                    positionAccessor = attrib.data;
+                                }
+                                break;
+                            case cgltf_attribute_type_texcoord:
+                                if (attrib.data->component_type == cgltf_component_type_r_32f) {
+                                    texCoordAccessor = attrib.data;
+                                }
+                                break;
+                            case cgltf_attribute_type_normal:
+                                if (attrib.data->component_type == cgltf_component_type_r_32f) {
+                                    normalAccessor = attrib.data;
+                                }
+                                break;
+                            default:
+                                break;
                             }
-                            break;
-                        case cgltf_attribute_type_texcoord:
-                            if (attrib.data->component_type == cgltf_component_type_r_32f) {
-                                texCoordAccessor = attrib.data;
+                        }
+
+                        GltfPrimitive gltfPrim {};
+                        for (int vertexIdx = 0; vertexIdx < vertexCount; vertexIdx++) {
+                            MeshVertex vertex {};
+
+                            if (positionAccessor) {
+                                cgltf_accessor_read_float(positionAccessor, vertexIdx, &vertex.x, 3);
                             }
-                            break;
-                        case cgltf_attribute_type_normal:
-                            if (attrib.data->component_type == cgltf_component_type_r_32f) {
-                                normalAccessor = attrib.data;
+                            if (texCoordAccessor) {
+                                cgltf_accessor_read_float(texCoordAccessor, vertexIdx, &vertex.u, 2);
                             }
-                            break;
-                        default:
-                            break;
-                        }
-                    }
+                            if (normalAccessor) {
+                                cgltf_accessor_read_float(normalAccessor, vertexIdx, &vertex.nx, 3);
+                            }
 
-                    GltfPrimitive gltfPrim {};
-
-                    for (int vertexIdx = 0; vertexIdx < vertexCount; vertexIdx++) {
-                        MeshVertex vertex {};
-
-                        if (positionAccessor) {
-                            cgltf_accessor_read_float(positionAccessor, vertexIdx, &vertex.x, 3);
-                        }
-                        if (texCoordAccessor) {
-                            cgltf_accessor_read_float(texCoordAccessor, vertexIdx, &vertex.u, 2);
-                        }
-                        if (normalAccessor) {
-                            cgltf_accessor_read_float(normalAccessor, vertexIdx, &vertex.nx, 3);
+                            gltfPrim.m_vertexData.emplace_back(vertex);
                         }
 
-                        gltfPrim.m_vertexData.emplace_back(vertex);
-                    }
+                        for (int indexIdx = 0; indexIdx < prim.indices->count; indexIdx++) {
+                            gltfPrim.m_vertexIndices.emplace_back(cgltf_accessor_read_index(prim.indices, indexIdx));
+                        }
 
-                    for (int indexIdx = 0; indexIdx < prim.indices->count; indexIdx++) {
-                        gltfPrim.m_vertexIndices.emplace_back(cgltf_accessor_read_index(prim.indices, indexIdx));
-                    }
+                        gltfMesh.m_primitives.emplace_back(gltfPrim);
+                    } // Iterating through the primitives.
 
-                    gltfMesh.m_primitives.emplace_back(gltfPrim);
-                } // Iterating through the primitives.
+                    parsedMeshes.emplace_back(gltfMesh);
+                } // Iterating through the meshes.
 
-                parsedMeshes.emplace_back(gltfMesh);
-            } // Iterating through the meshes.
+                cgltf_free(data);
 
-            cgltf_free(data);
+                for (auto& primitives : parsedMeshes[0].m_primitives) {
+                    Primitive primitive {.m_elementCount = primitives.m_vertexIndices.size()};
+
+                    // Create VBO.
+                    GLuint VBO;
+                    glCreateBuffers(1, &VBO);
+                    glNamedBufferStorage(VBO, sizeof(MeshVertex) * parsedMeshes[0].m_primitives[0].m_vertexData.size(),
+                        parsedMeshes[0].m_primitives[0].m_vertexData.data(), 0);
+                    primitive.m_vbo = VBO;
+
+                    // Create EBO.
+                    GLuint EBO;
+                    glCreateBuffers(1, &EBO);
+                    glNamedBufferStorage(EBO, sizeof(uint32_t) * parsedMeshes[0].m_primitives[0].m_vertexIndices.size(),
+                        parsedMeshes[0].m_primitives[0].m_vertexIndices.data(), 0);
+                    primitive.m_ebo = EBO;
+
+                    // Add primitive to the Mesh.
+                    mesh.m_primitives.emplace_back(primitive);
+                }
+
+                m_meshes.emplace_back(mesh);
+            }
         }
-
-        // (TODO): Create VBO, EBO for each Mesh primitive, and link them into the original Mesh structure. In the renderer, go
-        // through each Mesh's primitive and glDrawElements() ...
 
         // Create VAO.
         GLuint VAO;
         glCreateVertexArrays(1, &VAO);
-
-        // Create VBO.
-        GLuint VBO;
-        glCreateBuffers(1, &VBO);
-        glNamedBufferStorage(VBO, sizeof(MeshVertex) * parsedMeshes[0].m_primitives[0].m_vertexData.size(),
-            parsedMeshes[0].m_primitives[0].m_vertexData.data(), 0);
-
-        // Create EBO.
-        GLuint EBO;
-        glCreateBuffers(1, &EBO);
-        glNamedBufferStorage(EBO, sizeof(uint32_t) * parsedMeshes[0].m_primitives[0].m_vertexIndices.size(),
-            parsedMeshes[0].m_primitives[0].m_vertexIndices.data(), 0);
-
-        // Attach the VBO to the VAO.
-        glVertexArrayVertexBuffer(VAO, 0, VBO, 0, sizeof(MeshVertex));
-
-        // Attach the EBO to the VAO.
-        glVertexArrayElementBuffer(VAO, EBO);
-
-        m_currentEBO = EBO;
 
         // Declare the Position Attribute.
         glEnableVertexArrayAttrib(VAO, 0);
@@ -485,11 +462,11 @@ private:
             .m_projection = projection,
             .m_eyePos = glm::vec4(eyePos, 1.0),
             .m_lightPos = glm::vec4(1.0, 0.5, -0.5, 1.0),
-            .m_lightColor = glm::vec4(1.0, 0.0, 0.0, 1.0)};
+            .m_lightColor = glm::vec4(1.0, 1.0, 1.0, 1.0)};
         m_uboAllocator.Push(commonData);
 
         // Write each Cube's PerDrawData into the buffer.
-        for (auto& cube : m_cubes) {
+        for (auto& cube : m_nodes) {
             PerDrawData shaderData {cube.m_position};
             m_uboAllocator.Push(shaderData);
         }
@@ -501,8 +478,16 @@ private:
         glUseProgram(m_currentProgram);
         glBindVertexArray(m_currentVAO);
 
-        // Render each Cube.
-        for (int i = 0; i < m_cubes.size(); i++) {
+        // Render each Node.
+        for (int i = 0; i < m_nodes.size(); i++) {
+            size_t nodeIdx = m_nodes[i].m_meshID;
+
+            // Attach the VBO to the VAO.
+            glVertexArrayVertexBuffer(m_currentVAO, 0, m_meshes[nodeIdx].m_primitives[0].m_vbo, 0, sizeof(MeshVertex));
+
+            // Attach the EBO to the VAO.
+            glVertexArrayElementBuffer(m_currentVAO, m_meshes[nodeIdx].m_primitives[0].m_ebo);
+
             // Bind the Common UBO data into the first slot of the UBO.
             glBindBufferRange(GL_UNIFORM_BUFFER, 0, m_currentUBO, 0, sizeof(CommonData));
 
@@ -510,10 +495,10 @@ private:
             glBindBufferRange(GL_UNIFORM_BUFFER, 1, m_currentUBO, m_uboAllocator.GetAlignment() * (i + 1), sizeof(PerDrawData));
 
             // Bind the texture.
-            glBindTextureUnit(0, m_cubes[i].m_texture);
+            glBindTextureUnit(0, m_nodes[i].m_texture);
 
-            // Draw the Cube!
-            glDrawElements(GL_TRIANGLES, 27384, GL_UNSIGNED_INT, 0);
+            // Draw the Node!
+            glDrawElements(GL_TRIANGLES, m_meshes[nodeIdx].m_primitives[0].m_elementCount, GL_UNSIGNED_INT, 0);
         }
 
         glfwSwapBuffers(m_window);
@@ -530,7 +515,6 @@ private:
     GLuint m_currentProgram {};
     GLuint m_currentVAO {};
     GLuint m_currentUBO {};
-    GLuint m_currentEBO {};
 
     uint32_t m_windowWidth {640};
     uint32_t m_windowHeight {480};
@@ -556,11 +540,14 @@ private:
 
     std::vector<GLuint> m_loadedTextures {};
 
-    struct Cube {
+    struct Node {
         glm::mat4 m_position;
         GLuint m_texture;
+        size_t m_meshID;
     };
-    std::vector<Cube> m_cubes {};
+    std::vector<Node> m_nodes {};
+
+    std::vector<Mesh> m_meshes {};
 };
 
 int main()
