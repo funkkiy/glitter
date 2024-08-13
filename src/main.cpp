@@ -150,7 +150,7 @@ private:
             switch (key) {
             case GLFW_KEY_SPACE:
                 if (action == GLFW_RELEASE) {
-                    // We only accept up to 999 cubes.
+                    // We only accept up to 999 nodes.
                     if (app->m_nodes.size() >= 999) {
                         break;
                     }
@@ -293,7 +293,7 @@ private:
                 std::vector<GltfPrimitive> m_primitives;
             };
 
-            Mesh mesh {};
+            Mesh glitterMesh {};
             std::vector<GltfMesh> parsedMeshes;
             if (result == cgltf_result_success) {
                 // Iterate through each meshes, then through its primitives and their attributes, creating one VBO per primitive and
@@ -382,10 +382,10 @@ private:
                     primitive.m_ebo = EBO;
 
                     // Add primitive to the Mesh.
-                    mesh.m_primitives.emplace_back(primitive);
+                    glitterMesh.m_primitives.emplace_back(primitive);
                 }
 
-                m_meshes.emplace_back(mesh);
+                m_meshes.emplace_back(glitterMesh);
             }
         }
 
@@ -414,11 +414,11 @@ private:
         GLuint ubo {};
         glCreateBuffers(1, &ubo);
 
-        // Just enough for the Common stuff and 999 Cubes.
+        // Just enough for the Common stuff and 999 Nodes.
         glNamedBufferData(ubo, sizeof(CommonData) + (sizeof(PerDrawData) * 999), nullptr, GL_DYNAMIC_DRAW);
         m_currentUBO = ubo;
 
-        // Load some Cube textures.
+        // Load some Node textures.
         std::array texturePaths(std::to_array<const char*>({"textures/Tile.png", "textures/Cobble.png"}));
 
         for (auto& path : texturePaths) {
@@ -466,9 +466,9 @@ private:
             .m_lightColor = glm::vec4(1.0, 1.0, 1.0, 1.0)};
         m_uboAllocator.Push(commonData);
 
-        // Write each Cube's PerDrawData into the buffer.
-        for (auto& cube : m_nodes) {
-            PerDrawData shaderData {cube.m_position};
+        // Write each Node's PerDrawData into the buffer.
+        for (auto& node : m_nodes) {
+            PerDrawData shaderData {node.m_position};
             m_uboAllocator.Push(shaderData);
         }
 
