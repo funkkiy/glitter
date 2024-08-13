@@ -161,8 +161,9 @@ private:
                     model = glm::scale(model, glm::vec3(0.25f));
                     model = glm::translate(model, glm::sphericalRand(6.0f));
 
-                    app->m_nodes.push_back(
-                        Node {.m_position = model, .m_texture = app->m_loadedTextures[std::rand() % app->m_loadedTextures.size()], .m_meshID = std::rand() % app->m_meshes.size()});
+                    app->m_nodes.push_back(Node {.m_position = model,
+                        .m_texture = app->m_loadedTextures[std::rand() % app->m_loadedTextures.size()],
+                        .m_meshID = std::rand() % app->m_meshes.size()});
                 }
                 break;
             case GLFW_KEY_ESCAPE:
@@ -480,25 +481,27 @@ private:
 
         // Render each Node.
         for (int i = 0; i < m_nodes.size(); i++) {
-            size_t nodeIdx = m_nodes[i].m_meshID;
+            size_t meshIdx = m_nodes[i].m_meshID;
 
-            // Attach the VBO to the VAO.
-            glVertexArrayVertexBuffer(m_currentVAO, 0, m_meshes[nodeIdx].m_primitives[0].m_vbo, 0, sizeof(MeshVertex));
+            for (auto& primitive : m_meshes[meshIdx].m_primitives) {
+                // Attach the VBO to the VAO.
+                glVertexArrayVertexBuffer(m_currentVAO, 0, primitive.m_vbo, 0, sizeof(MeshVertex));
 
-            // Attach the EBO to the VAO.
-            glVertexArrayElementBuffer(m_currentVAO, m_meshes[nodeIdx].m_primitives[0].m_ebo);
+                // Attach the EBO to the VAO.
+                glVertexArrayElementBuffer(m_currentVAO, primitive.m_ebo);
 
-            // Bind the Common UBO data into the first slot of the UBO.
-            glBindBufferRange(GL_UNIFORM_BUFFER, 0, m_currentUBO, 0, sizeof(CommonData));
+                // Bind the Common UBO data into the first slot of the UBO.
+                glBindBufferRange(GL_UNIFORM_BUFFER, 0, m_currentUBO, 0, sizeof(CommonData));
 
-            // Bind the Per-Draw UBO data into the second slot of the UBO.
-            glBindBufferRange(GL_UNIFORM_BUFFER, 1, m_currentUBO, m_uboAllocator.GetAlignment() * (i + 1), sizeof(PerDrawData));
+                // Bind the Per-Draw UBO data into the second slot of the UBO.
+                glBindBufferRange(GL_UNIFORM_BUFFER, 1, m_currentUBO, m_uboAllocator.GetAlignment() * (i + 1), sizeof(PerDrawData));
 
-            // Bind the texture.
-            glBindTextureUnit(0, m_nodes[i].m_texture);
+                // Bind the texture.
+                glBindTextureUnit(0, m_nodes[i].m_texture);
 
-            // Draw the Node!
-            glDrawElements(GL_TRIANGLES, m_meshes[nodeIdx].m_primitives[0].m_elementCount, GL_UNSIGNED_INT, 0);
+                // Draw the Primitive!
+                glDrawElements(GL_TRIANGLES, primitive.m_elementCount, GL_UNSIGNED_INT, 0);
+            }
         }
 
         glfwSwapBuffers(m_window);
