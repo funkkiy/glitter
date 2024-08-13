@@ -23,6 +23,9 @@ string(CONCAT WALL_MSVC "$<"
 # multi-cpu build
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/MP>)
 
+# colored output
+set(CMAKE_COLOR_DIAGNOSTICS TRUE)
+
 #[[
 string(CONCAT ASAN_MSVC "$<"
     "$<AND:"
