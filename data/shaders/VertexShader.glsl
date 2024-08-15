@@ -16,12 +16,14 @@ layout (std140, binding = 0) uniform CommonData
 layout (std140, binding = 1) uniform PerDrawData
 {
     mat4 u_Model;
+    float u_Opacity;
 };
 
 out vec2 v_TexCoord;
 out vec3 v_Normal;
 out vec3 v_FragPos;
 out vec4 v_EyePos;
+out float v_Opacity;
 
 void main()
 {
@@ -31,4 +33,5 @@ void main()
     v_Normal = a_Position;
     v_FragPos = vec3(u_Model * vec4(a_Position, 1.0));
     v_EyePos = u_EyePos;
+    v_Opacity = u_Opacity;
 }

@@ -3,6 +3,7 @@
 in vec2 v_TexCoord;
 in vec3 v_Normal;
 in vec3 v_FragPos;
+in float v_Opacity;
 
 layout (std140, binding = 0) uniform CommonData
 {
@@ -41,5 +42,5 @@ void main()
 
     // Result
     vec3 CombinedLight = Ambient + Diffuse + Specular;
-    FragColor = texture(u_Texture, v_TexCoord) * vec4(CombinedLight, 1.0);
+    FragColor = texture(u_Texture, v_TexCoord) * vec4(CombinedLight, 1.0) * vec4(1.0, 1.0, 1.0, v_Opacity);
 }

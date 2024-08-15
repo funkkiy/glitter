@@ -184,7 +184,7 @@ private:
                     app->m_nodes.push_back(Node {.m_position = model,
                         .m_texture = app->m_loadedTextures[std::rand() % app->m_loadedTextures.size()],
                         .m_meshID = std::rand() % app->m_meshes.size(),
-                        .m_uboOffset = 0});
+                        .m_uboOffset = 0, .m_opacity = 0.5f});
                 }
                 break;
             case GLFW_KEY_ESCAPE:
@@ -238,6 +238,9 @@ private:
 
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glEnable(GL_DEPTH_TEST);
+        glEnable(GL_CULL_FACE);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         // Create the Vertex and Fragment shaders.
         GLint shadersOk = true;
@@ -489,7 +492,7 @@ private:
 
         // Write each Node's PerDrawData into the buffer.
         for (auto& node : m_nodes) {
-            PerDrawData shaderData {node.m_position};
+            PerDrawData shaderData {.m_model = node.m_position, .m_opacity = node.m_opacity};
             node.m_uboOffset = m_uboAllocator.Push(shaderData);
         }
 
@@ -555,6 +558,7 @@ private:
     };
     struct PerDrawData {
         glm::mat4 m_model;
+        float m_opacity;
     };
     struct ShaderData {
         CommonData m_commonData;
@@ -569,6 +573,7 @@ private:
         GLuint m_texture;
         size_t m_meshID;
         size_t m_uboOffset;
+        float m_opacity;
     };
     std::vector<Node> m_nodes {};
 
