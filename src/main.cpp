@@ -41,13 +41,15 @@ public:
         size_t bytesRequired = futureSize + paddingRequired;
         m_buffer.reserve(m_buffer.size() + bytesRequired);
 
+        size_t offsetBeforePush = m_buffer.size();
+
         // Push the object.
         m_buffer.insert(m_buffer.end(), reinterpret_cast<uint8_t*>(&t), reinterpret_cast<uint8_t*>(&t) + sizeof(T));
 
         // Push the padding.
         m_buffer.resize(m_buffer.size() + paddingRequired);
 
-        return m_buffer.size();
+        return offsetBeforePush;
     }
 
     uint8_t* Data() { return m_buffer.data(); }
@@ -163,7 +165,8 @@ private:
 
                     app->m_nodes.push_back(Node {.m_position = model,
                         .m_texture = app->m_loadedTextures[std::rand() % app->m_loadedTextures.size()],
-                        .m_meshID = std::rand() % app->m_meshes.size()});
+                        .m_meshID = std::rand() % app->m_meshes.size(),
+                        .m_uboOffset = 0});
                 }
                 break;
             case GLFW_KEY_ESCAPE:
@@ -469,7 +472,7 @@ private:
         // Write each Node's PerDrawData into the buffer.
         for (auto& node : m_nodes) {
             PerDrawData shaderData {node.m_position};
-            m_uboAllocator.Push(shaderData);
+            node.m_uboOffset = m_uboAllocator.Push(shaderData);
         }
 
         // Upload the CPU-backing buffer into the UBO.
@@ -494,7 +497,7 @@ private:
                 glBindBufferRange(GL_UNIFORM_BUFFER, 0, m_currentUBO, 0, sizeof(CommonData));
 
                 // Bind the Per-Draw UBO data into the second slot of the UBO.
-                glBindBufferRange(GL_UNIFORM_BUFFER, 1, m_currentUBO, m_uboAllocator.GetAlignment() * (i + 1), sizeof(PerDrawData));
+                glBindBufferRange(GL_UNIFORM_BUFFER, 1, m_currentUBO, m_nodes[i].m_uboOffset, sizeof(PerDrawData));
 
                 // Bind the texture.
                 glBindTextureUnit(0, m_nodes[i].m_texture);
@@ -547,6 +550,7 @@ private:
         glm::mat4 m_position;
         GLuint m_texture;
         size_t m_meshID;
+        size_t m_uboOffset;
     };
     std::vector<Node> m_nodes {};
 
