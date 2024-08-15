@@ -505,7 +505,8 @@ private:
 
         // Render each Node.
         for (int i = 0; i < m_nodes.size(); i++) {
-            size_t meshIdx = m_nodes[i].m_meshID;
+            Node& node = m_nodes[i];
+            size_t meshIdx = node.m_meshID;
 
             for (auto& primitive : m_meshes[meshIdx].m_primitives) {
                 // Attach the VBO to the VAO.
@@ -518,10 +519,10 @@ private:
                 glBindBufferRange(GL_UNIFORM_BUFFER, 0, m_currentUBO, 0, sizeof(CommonData));
 
                 // Bind the Per-Draw UBO data into the second slot of the UBO.
-                glBindBufferRange(GL_UNIFORM_BUFFER, 1, m_currentUBO, m_nodes[i].m_uboOffset, sizeof(PerDrawData));
+                glBindBufferRange(GL_UNIFORM_BUFFER, 1, m_currentUBO, node.m_uboOffset, sizeof(PerDrawData));
 
                 // Bind the texture.
-                glBindTextureUnit(0, m_nodes[i].m_texture);
+                glBindTextureUnit(0, node.m_texture);
 
                 // Draw the Primitive!
                 glDrawElements(GL_TRIANGLES, primitive.m_elementCount, GL_UNSIGNED_INT, 0);
