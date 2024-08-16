@@ -13,6 +13,7 @@
 #include <spdlog/spdlog.h>
 #include <stb_image.h>
 
+#include <algorithm>
 #include <array>
 #include <optional>
 #include <print>
@@ -175,16 +176,20 @@ private:
                         break;
                     }
 
-                    // The Model has to follow the Scale-Rotate-Translate
-                    // order.
-                    glm::mat4 model = glm::mat4(1.0f);
-                    model = glm::scale(model, glm::vec3(0.25f));
-                    model = glm::translate(model, glm::sphericalRand(6.0f));
+                    static float opacity = 1.0f;
 
-                    app->m_nodes.push_back(Node {.m_position = model,
+                    app->m_nodes.push_back(Node {.m_position = glm::sphericalRand(6.0f),
                         .m_texture = app->m_loadedTextures[std::rand() % app->m_loadedTextures.size()],
                         .m_meshID = std::rand() % app->m_meshes.size(),
-                        .m_uboOffset = 0, .m_opacity = 0.5f});
+                        .m_uboOffset = 0,
+                        .m_opacity = opacity,
+                        .m_scale = glm::vec3(0.25f)});
+
+                    if (opacity == 1.0f) {
+                        opacity = 0.5f;
+                    } else {
+                        opacity = 1.0f;
+                    }
                 }
                 break;
             case GLFW_KEY_ESCAPE:
@@ -492,7 +497,13 @@ private:
 
         // Write each Node's PerDrawData into the buffer.
         for (auto& node : m_nodes) {
-            PerDrawData shaderData {.m_model = node.m_position, .m_opacity = node.m_opacity};
+            // The Model has to follow the Scale-Rotate-Translate
+            // order.
+            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::scale(model, node.m_scale);
+            model = glm::translate(model, node.m_position);
+
+            PerDrawData shaderData {.m_model = model, .m_opacity = node.m_opacity};
             node.m_uboOffset = m_uboAllocator.Push(shaderData);
         }
 
@@ -503,31 +514,54 @@ private:
         glUseProgram(m_currentProgram);
         glBindVertexArray(m_currentVAO);
 
-        // Render each Node.
-        for (int i = 0; i < m_nodes.size(); i++) {
-            Node& node = m_nodes[i];
-            size_t meshIdx = node.m_meshID;
-
-            for (auto& primitive : m_meshes[meshIdx].m_primitives) {
-                // Attach the VBO to the VAO.
-                glVertexArrayVertexBuffer(m_currentVAO, 0, primitive.m_vbo, 0, sizeof(MeshVertex));
-
-                // Attach the EBO to the VAO.
-                glVertexArrayElementBuffer(m_currentVAO, primitive.m_ebo);
-
-                // Bind the Common UBO data into the first slot of the UBO.
-                glBindBufferRange(GL_UNIFORM_BUFFER, 0, m_currentUBO, 0, sizeof(CommonData));
-
-                // Bind the Per-Draw UBO data into the second slot of the UBO.
-                glBindBufferRange(GL_UNIFORM_BUFFER, 1, m_currentUBO, node.m_uboOffset, sizeof(PerDrawData));
-
-                // Bind the texture.
-                glBindTextureUnit(0, node.m_texture);
-
-                // Draw the Primitive!
-                glDrawElements(GL_TRIANGLES, primitive.m_elementCount, GL_UNSIGNED_INT, 0);
+        // Split Node elements between opaque and transparent.
+        std::vector<Node> m_opaqueNodes {};
+        std::vector<Node> m_transparentNodes {};
+        for (Node& node : m_nodes) {
+            if (node.m_opacity == 1.0f) {
+                m_opaqueNodes.emplace_back(node);
+            } else {
+                m_transparentNodes.emplace_back(node);
             }
         }
+
+        // Sort each transparent Node by their distance to the camera.
+        std::sort(m_transparentNodes.begin(), m_transparentNodes.end(),
+            [&eyePos](Node& a, Node& b) { return glm::distance(eyePos, a.m_position) < glm::distance(eyePos, b.m_position); });
+
+        auto renderNodes = [this](std::vector<Node> nodes) {
+            for (Node& node : nodes) {
+                size_t meshIdx = node.m_meshID;
+
+                for (auto& primitive : m_meshes[meshIdx].m_primitives) {
+                    // Attach the VBO to the VAO.
+                    glVertexArrayVertexBuffer(m_currentVAO, 0, primitive.m_vbo, 0, sizeof(MeshVertex));
+
+                    // Attach the EBO to the VAO.
+                    glVertexArrayElementBuffer(m_currentVAO, primitive.m_ebo);
+
+                    // Bind the Common UBO data into the first slot of the UBO.
+                    glBindBufferRange(GL_UNIFORM_BUFFER, 0, m_currentUBO, 0, sizeof(CommonData));
+
+                    // Bind the Per-Draw UBO data into the second slot of the UBO.
+                    glBindBufferRange(GL_UNIFORM_BUFFER, 1, m_currentUBO, node.m_uboOffset, sizeof(PerDrawData));
+
+                    // Bind the texture.
+                    glBindTextureUnit(0, node.m_texture);
+
+                    // Draw the Primitive!
+                    glDrawElements(GL_TRIANGLES, primitive.m_elementCount, GL_UNSIGNED_INT, 0);
+                }
+            }
+        };
+
+        // Render each opaque Node.
+        glEnable(GL_DEPTH_TEST);
+        renderNodes(m_opaqueNodes);
+
+        // Render each transparent Node.
+        glDisable(GL_DEPTH_TEST);
+        renderNodes(m_transparentNodes);
 
         glfwSwapBuffers(m_window);
         glfwPollEvents();
@@ -570,11 +604,12 @@ private:
     std::vector<GLuint> m_loadedTextures {};
 
     struct Node {
-        glm::mat4 m_position;
+        glm::vec3 m_position;
         GLuint m_texture;
         size_t m_meshID;
         size_t m_uboOffset;
         float m_opacity;
+        glm::vec3 m_scale;
     };
     std::vector<Node> m_nodes {};
 
