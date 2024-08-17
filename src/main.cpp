@@ -497,6 +497,11 @@ private:
 
         // Write each Node's PerDrawData into the buffer.
         for (auto& node : m_nodes) {
+            // Don't bother writing data for a totally transparent mesh.
+            if (node.m_opacity == 0.0f) {
+                continue;
+            }
+
             // The Model has to follow the Scale-Rotate-Translate
             // order.
             glm::mat4 model = glm::mat4(1.0f);
@@ -520,8 +525,11 @@ private:
         for (Node& node : m_nodes) {
             if (node.m_opacity == 1.0f) {
                 m_opaqueNodes.emplace_back(node);
-            } else {
+            } else if (node.m_opacity != 0.0f) {
                 m_transparentNodes.emplace_back(node);
+            } else {
+                // A totally transparent mesh (opacity = 0.0f).
+                continue;
             }
         }
 
