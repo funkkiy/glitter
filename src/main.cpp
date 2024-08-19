@@ -533,7 +533,11 @@ private:
             }
         }
 
-        // Sort each transparent Node by their distance to the camera.
+        // Sort each opaque Node from front-to-back.
+        std::sort(m_opaqueNodes.begin(), m_opaqueNodes.end(),
+            [&eyePos](Node& a, Node& b) { return glm::distance(eyePos, a.m_position) > glm::distance(eyePos, b.m_position); });
+
+        // Sort each transparent Node from back-to-front.
         std::sort(m_transparentNodes.begin(), m_transparentNodes.end(),
             [&eyePos](Node& a, Node& b) { return glm::distance(eyePos, a.m_position) < glm::distance(eyePos, b.m_position); });
 
