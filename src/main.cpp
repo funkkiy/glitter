@@ -497,7 +497,7 @@ private:
 
         // Write each Node's PerDrawData into the buffer.
         for (auto& node : m_nodes) {
-            // Don't bother writing data for a totally transparent mesh.
+            // Don't bother writing data for a totally transparent Node.
             if (node.m_opacity == 0.0f) {
                 continue;
             }
@@ -528,7 +528,7 @@ private:
             } else if (node.m_opacity != 0.0f) {
                 m_transparentNodes.emplace_back(node);
             } else {
-                // A totally transparent mesh (opacity = 0.0f).
+                // A totally transparent Node (opacity = 0.0f).
                 continue;
             }
         }
