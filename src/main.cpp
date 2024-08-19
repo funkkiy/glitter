@@ -125,6 +125,7 @@ public:
         }
 
         while (!glfwWindowShouldClose(m_window)) {
+            Tick();
             Render();
         }
 
@@ -176,20 +177,17 @@ private:
                         break;
                     }
 
-                    static float opacity = 1.0f;
+                    static bool shouldAnimate = true;
 
                     app->m_nodes.push_back(Node {.m_position = glm::sphericalRand(6.0f),
                         .m_texture = app->m_loadedTextures[std::rand() % app->m_loadedTextures.size()],
                         .m_meshID = std::rand() % app->m_meshes.size(),
                         .m_uboOffset = 0,
-                        .m_opacity = opacity,
-                        .m_scale = glm::vec3(0.25f)});
+                        .m_opacity = 1.0f,
+                        .m_scale = glm::vec3(0.25f),
+                        .m_shouldAnimate = shouldAnimate});
 
-                    if (opacity == 1.0f) {
-                        opacity = 0.5f;
-                    } else {
-                        opacity = 1.0f;
-                    }
+                    shouldAnimate = !shouldAnimate;
                 }
                 break;
             case GLFW_KEY_ESCAPE:
@@ -472,6 +470,15 @@ private:
         return PrepareResult::Ok;
     }
 
+    void Tick()
+    {
+        for (Node& node : m_nodes) {
+            if (node.m_shouldAnimate) {
+                node.m_opacity = std::clamp(std::abs(1.25 * std::cos(glfwGetTime())), 0.0, 1.0);
+            }
+        }
+    }
+
     void Render()
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -535,11 +542,11 @@ private:
 
         // Sort each opaque Node from front-to-back.
         std::sort(m_opaqueNodes.begin(), m_opaqueNodes.end(),
-            [&eyePos](Node& a, Node& b) { return glm::distance(eyePos, a.m_position) > glm::distance(eyePos, b.m_position); });
+            [&eyePos](Node& a, Node& b) { return glm::distance(eyePos, a.m_position) < glm::distance(eyePos, b.m_position); });
 
         // Sort each transparent Node from back-to-front.
         std::sort(m_transparentNodes.begin(), m_transparentNodes.end(),
-            [&eyePos](Node& a, Node& b) { return glm::distance(eyePos, a.m_position) < glm::distance(eyePos, b.m_position); });
+            [&eyePos](Node& a, Node& b) { return glm::distance(eyePos, a.m_position) > glm::distance(eyePos, b.m_position); });
 
         auto renderNodes = [this](std::vector<Node> nodes) {
             for (Node& node : nodes) {
@@ -568,12 +575,14 @@ private:
         };
 
         // Render each opaque Node.
-        glEnable(GL_DEPTH_TEST);
-        renderNodes(m_opaqueNodes);
+        if (!m_opaqueNodes.empty()) {
+            renderNodes(m_opaqueNodes);
+        }
 
         // Render each transparent Node.
-        glDisable(GL_DEPTH_TEST);
-        renderNodes(m_transparentNodes);
+        if (!m_transparentNodes.empty()) {
+            renderNodes(m_transparentNodes);
+        }
 
         glfwSwapBuffers(m_window);
         glfwPollEvents();
@@ -622,6 +631,7 @@ private:
         size_t m_uboOffset;
         float m_opacity;
         glm::vec3 m_scale;
+        bool m_shouldAnimate;
     };
     std::vector<Node> m_nodes {};
 
