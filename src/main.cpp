@@ -576,13 +576,18 @@ private:
 
         // Render each opaque Node.
         if (!m_opaqueNodes.empty()) {
+            glDepthMask(GL_TRUE);
             renderNodes(m_opaqueNodes);
         }
 
         // Render each transparent Node.
         if (!m_transparentNodes.empty()) {
+            glDepthMask(GL_FALSE);
             renderNodes(m_transparentNodes);
         }
+
+        // Note: glClear() respects depth-write, therefore depth-write must be enabled to clear the depth buffer.
+        glDepthMask(GL_TRUE);
 
         glfwSwapBuffers(m_window);
         glfwPollEvents();
@@ -615,6 +620,7 @@ private:
     struct PerDrawData {
         glm::mat4 m_model;
         float m_opacity;
+        float m_unused[3];
     };
     struct ShaderData {
         CommonData m_commonData;
