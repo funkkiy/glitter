@@ -3,7 +3,6 @@
 in vec2 v_TexCoord;
 in vec3 v_Normal;
 in vec3 v_FragPos;
-in float v_Opacity;
 
 layout (std140, binding = 0) uniform CommonData
 {
@@ -14,6 +13,12 @@ layout (std140, binding = 0) uniform CommonData
     vec4 u_LightColor;
 };
 
+layout (std140, binding = 1) uniform PerDrawData
+{
+    mat4 u_Model;
+    float u_Opacity;
+};
+
 uniform sampler2D u_Texture;
 
 out vec4 FragColor;
@@ -22,15 +27,15 @@ void main()
 { 
     vec3 EyePos = u_EyePos.xyz;
     vec3 LightPos = u_LightPos.xyz;
-    vec3 LightColor = u_LightColor.xyz;
+    vec3 LightColor = u_LightColor.rgb;
 
     // Ambient
     vec3 Ambient = vec3(0.1 * LightColor);
 
     // Diffuse
     vec3 Normal = normalize(v_Normal);
-    vec3 LightDir = normalize(LightPos);
-    float NDotL = max(0.0, dot(Normal, LightDir));
+    vec3 LightDir = normalize(LightPos - v_FragPos);
+    float NDotL = max(dot(Normal, LightDir), 0.0);
     vec3 Diffuse = NDotL * LightColor;
 
     // Specular
@@ -42,5 +47,5 @@ void main()
 
     // Result
     vec3 CombinedLight = Ambient + Diffuse + Specular;
-    FragColor = texture(u_Texture, v_TexCoord) * vec4(CombinedLight, 1.0) * vec4(1.0, 1.0, 1.0, v_Opacity);
+    FragColor = texture(u_Texture, v_TexCoord) * vec4(CombinedLight, u_Opacity);
 }

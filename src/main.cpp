@@ -240,6 +240,7 @@ private:
 #endif
 
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_CULL_FACE);
         glEnable(GL_BLEND);
@@ -303,7 +304,7 @@ private:
         m_currentProgram = shaderProgram;
 
         // glTF mesh!
-        std::array meshPaths(std::to_array<const char*>({"meshes/Cube.gltf", "meshes/Teapot.gltf"}));
+        std::array meshPaths(std::to_array<const char*>({"meshes/teapot.glb"}));
         for (auto& path : meshPaths) {
             cgltf_options options {};
             cgltf_data* data = nullptr;
@@ -481,13 +482,15 @@ private:
 
     void Render()
     {
+        // Note: glClear() respects depth-write, therefore depth-write must be enabled to clear the depth buffer.
+        glDepthMask(GL_TRUE);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Clear the UBO CPU-backing buffer.
         m_uboAllocator.Clear();
 
         // Calculate View and Projection.
-        glm::vec3 eyePos = glm::vec3(0.0f, 2.5f, -3.5f);
+        glm::vec3 eyePos = glm::vec3(std::sin(glfwGetTime()), 2.5f, -3.5f);
         glm::mat4 view = glm::lookAt(eyePos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         glm::mat4 projection = glm::perspective(
             glm::radians(45.0f), static_cast<float>(m_windowWidth) / static_cast<float>(m_windowHeight), 0.1f, 100.0f);
@@ -585,9 +588,6 @@ private:
             glDepthMask(GL_FALSE);
             renderNodes(m_transparentNodes);
         }
-
-        // Note: glClear() respects depth-write, therefore depth-write must be enabled to clear the depth buffer.
-        glDepthMask(GL_TRUE);
 
         glfwSwapBuffers(m_window);
         glfwPollEvents();
