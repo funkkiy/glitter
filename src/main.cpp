@@ -231,6 +231,9 @@ private:
                 case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
                     spdlog::error("{} {}", source, msg);
                     break;
+                case GL_DEBUG_TYPE_PUSH_GROUP:
+                case GL_DEBUG_TYPE_POP_GROUP:
+                    break;
                 default:
                     spdlog::warn("{}", msg);
                     break;
@@ -263,6 +266,7 @@ private:
         }
         const char* vertexSrcRaw = vertexSrc.value().c_str();
         GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
+        glObjectLabel(GL_SHADER, vertexShader, -1, "Vertex Shader");
         glShaderSource(vertexShader, 1, &vertexSrcRaw, nullptr);
         glCompileShader(vertexShader);
         glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &shadersOk);
@@ -278,6 +282,7 @@ private:
         }
         const char* fragmentSrcRaw = fragmentSrc.value().c_str();
         GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+        glObjectLabel(GL_SHADER, fragmentShader, -1, "Fragment Shader");
         glShaderSource(fragmentShader, 1, &fragmentSrcRaw, nullptr);
         glCompileShader(fragmentShader);
         glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &shadersOk);
@@ -288,6 +293,7 @@ private:
 
         // Link the shaders into a Program.
         GLuint shaderProgram = glCreateProgram();
+        glObjectLabel(GL_PROGRAM, shaderProgram, -1, "Shader Program");
         glAttachShader(shaderProgram, vertexShader);
         glAttachShader(shaderProgram, fragmentShader);
         glLinkProgram(shaderProgram);
@@ -400,6 +406,7 @@ private:
                     glCreateBuffers(1, &VBO);
                     glNamedBufferStorage(VBO, sizeof(MeshVertex) * parsedMeshes[0].m_primitives[0].m_vertexData.size(),
                         parsedMeshes[0].m_primitives[0].m_vertexData.data(), 0);
+                    glObjectLabel(GL_BUFFER, VBO, -1, "VBO");
                     primitive.m_vbo = VBO;
 
                     // Create EBO.
@@ -407,6 +414,7 @@ private:
                     glCreateBuffers(1, &EBO);
                     glNamedBufferStorage(EBO, sizeof(uint32_t) * parsedMeshes[0].m_primitives[0].m_vertexIndices.size(),
                         parsedMeshes[0].m_primitives[0].m_vertexIndices.data(), 0);
+                    glObjectLabel(GL_BUFFER, EBO, -1, "EBO");
                     primitive.m_ebo = EBO;
 
                     // Add primitive to the Mesh.
@@ -420,6 +428,7 @@ private:
         // Create VAO.
         GLuint VAO;
         glCreateVertexArrays(1, &VAO);
+        glObjectLabel(GL_VERTEX_ARRAY, VAO, -1, "VAO");
 
         // Declare the Position Attribute.
         glEnableVertexArrayAttrib(VAO, 0);
@@ -441,6 +450,7 @@ private:
         // Create empty UBO buffer.
         GLuint ubo {};
         glCreateBuffers(1, &ubo);
+        glObjectLabel(GL_BUFFER, ubo, -1, "UBO");
 
         // Just enough for the Common stuff and 999 Nodes.
         glNamedBufferData(ubo, sizeof(CommonData) + (sizeof(PerDrawData) * 999), nullptr, GL_DYNAMIC_DRAW);
@@ -456,6 +466,7 @@ private:
             glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_REPEAT);
             glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glObjectLabel(GL_TEXTURE, texture, -1, std::format("Texture <{}>", path).c_str());
 
             int width, height, nChannels;
             unsigned char* textureData = stbi_load(path, &width, &height, &nChannels, 4);
@@ -579,14 +590,22 @@ private:
 
         // Render each opaque Node.
         if (!opaqueNodes.empty()) {
-            glDepthMask(GL_TRUE);
-            renderNodes(opaqueNodes);
+            glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Opaque Nodes");
+            {
+                glDepthMask(GL_TRUE);
+                renderNodes(opaqueNodes);
+            }
+            glPopDebugGroup();
         }
 
         // Render each transparent Node.
         if (!transparentNodes.empty()) {
-            glDepthMask(GL_FALSE);
-            renderNodes(transparentNodes);
+            glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 1, -1, "Transparent Nodes");
+            {
+                glDepthMask(GL_FALSE);
+                renderNodes(transparentNodes);
+            }
+            glPopDebugGroup();
         }
 
         glfwSwapBuffers(m_window);
