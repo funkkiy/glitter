@@ -530,13 +530,13 @@ private:
         glBindVertexArray(m_currentVAO);
 
         // Split Node elements between opaque and transparent.
-        std::vector<Node> m_opaqueNodes {};
-        std::vector<Node> m_transparentNodes {};
+        std::vector<Node> opaqueNodes {};
+        std::vector<Node> transparentNodes {};
         for (Node& node : m_nodes) {
             if (node.m_opacity == 1.0f) {
-                m_opaqueNodes.emplace_back(node);
+                opaqueNodes.emplace_back(node);
             } else if (node.m_opacity != 0.0f) {
-                m_transparentNodes.emplace_back(node);
+                transparentNodes.emplace_back(node);
             } else {
                 // A totally transparent Node (opacity = 0.0f).
                 continue;
@@ -544,11 +544,11 @@ private:
         }
 
         // Sort each opaque Node from front-to-back.
-        std::sort(m_opaqueNodes.begin(), m_opaqueNodes.end(),
+        std::sort(opaqueNodes.begin(), opaqueNodes.end(),
             [&eyePos](Node& a, Node& b) { return glm::distance(eyePos, a.m_position) < glm::distance(eyePos, b.m_position); });
 
         // Sort each transparent Node from back-to-front.
-        std::sort(m_transparentNodes.begin(), m_transparentNodes.end(),
+        std::sort(transparentNodes.begin(), transparentNodes.end(),
             [&eyePos](Node& a, Node& b) { return glm::distance(eyePos, a.m_position) > glm::distance(eyePos, b.m_position); });
 
         auto renderNodes = [this](std::vector<Node> nodes) {
@@ -578,15 +578,15 @@ private:
         };
 
         // Render each opaque Node.
-        if (!m_opaqueNodes.empty()) {
+        if (!opaqueNodes.empty()) {
             glDepthMask(GL_TRUE);
-            renderNodes(m_opaqueNodes);
+            renderNodes(opaqueNodes);
         }
 
         // Render each transparent Node.
-        if (!m_transparentNodes.empty()) {
+        if (!transparentNodes.empty()) {
             glDepthMask(GL_FALSE);
-            renderNodes(m_transparentNodes);
+            renderNodes(transparentNodes);
         }
 
         glfwSwapBuffers(m_window);
