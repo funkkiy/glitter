@@ -399,7 +399,7 @@ private:
                 cgltf_free(data);
 
                 for (auto& primitives : parsedMeshes[0].m_primitives) {
-                    Primitive primitive {.m_elementCount = narrow_into<GLsizei>(primitives.m_vertexIndices.size())};
+                    Primitive primitive {.m_vbo = 0, .m_elementCount = narrow_into<GLsizei>(primitives.m_vertexIndices.size())};
 
                     // Create VBO.
                     GLuint VBO;
