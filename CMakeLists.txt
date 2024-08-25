@@ -93,12 +93,14 @@ list(APPEND GLITTER_INCLUDES
 	
 	# glad
     vendor/glad/include
-	
-	# stb
-    vendor/stb
 
     # cgltf
     vendor/cgltf
+)
+
+list(APPEND GLITTER_IGNORE_WARNINGS_INCLUDES
+	# stb
+    vendor/stb
 )
 
 add_executable(Glitter)
@@ -107,6 +109,9 @@ target_sources(Glitter PRIVATE
 )
 target_include_directories(Glitter PRIVATE
     ${GLITTER_INCLUDES}
+)
+target_include_directories(Glitter SYSTEM PRIVATE
+    ${GLITTER_IGNORE_WARNINGS_INCLUDES}
 )
 target_link_libraries(Glitter glfw spdlog glm)
 target_compile_features(Glitter PRIVATE cxx_std_23)
