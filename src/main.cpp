@@ -332,19 +332,19 @@ private:
             if (result == cgltf_result_success) {
                 // Iterate through each meshes, then through its primitives and their attributes, creating one VBO per primitive and
                 // filling it with data pointed by the attribute buffer views. A mesh can have several primitives.
-                for (int meshIdx = 0; meshIdx < data->meshes_count; meshIdx++) {
+                for (cgltf_size meshIdx = 0; meshIdx < data->meshes_count; meshIdx++) {
                     cgltf_mesh mesh = data->meshes[meshIdx];
 
                     GltfMesh gltfMesh {};
-                    for (int primIdx = 0; primIdx < mesh.primitives_count; primIdx++) {
+                    for (cgltf_size primIdx = 0; primIdx < mesh.primitives_count; primIdx++) {
                         cgltf_primitive prim = mesh.primitives[primIdx];
 
-                        size_t vertexCount {0};
+                        cgltf_size vertexCount {0};
                         // Fill out the accessor pointers.
                         cgltf_accessor* positionAccessor = nullptr;
                         cgltf_accessor* texCoordAccessor = nullptr;
                         cgltf_accessor* normalAccessor = nullptr;
-                        for (int attribIdx = 0; attribIdx < prim.attributes_count; attribIdx++) {
+                        for (cgltf_size attribIdx = 0; attribIdx < prim.attributes_count; attribIdx++) {
                             cgltf_attribute attrib = prim.attributes[attribIdx];
 
                             switch (attrib.type) {
@@ -370,7 +370,7 @@ private:
                         }
 
                         GltfPrimitive gltfPrim {};
-                        for (int vertexIdx = 0; vertexIdx < vertexCount; vertexIdx++) {
+                        for (cgltf_size vertexIdx = 0; vertexIdx < vertexCount; vertexIdx++) {
                             MeshVertex vertex {};
 
                             if (positionAccessor) {
@@ -386,7 +386,7 @@ private:
                             gltfPrim.m_vertexData.emplace_back(vertex);
                         }
 
-                        for (int indexIdx = 0; indexIdx < prim.indices->count; indexIdx++) {
+                        for (cgltf_size indexIdx = 0; indexIdx < prim.indices->count; indexIdx++) {
                             gltfPrim.m_vertexIndices.emplace_back(cgltf_accessor_read_index(prim.indices, indexIdx));
                         }
 
@@ -399,7 +399,10 @@ private:
                 cgltf_free(data);
 
                 for (auto& primitives : parsedMeshes[0].m_primitives) {
-                    Primitive primitive {.m_vbo = 0, .m_elementCount = narrow_into<GLsizei>(primitives.m_vertexIndices.size())};
+                    Primitive primitive {.m_vbo = 0,
+                        .m_ebo = 0,
+                        .m_baseTexture = 0,
+                        .m_elementCount = narrow_into<GLsizei>(primitives.m_vertexIndices.size())};
 
                     // Create VBO.
                     GLuint VBO;
@@ -529,7 +532,7 @@ private:
             model = glm::scale(model, node.m_scale);
             model = glm::translate(model, node.m_position);
 
-            PerDrawData shaderData {.m_model = model, .m_opacity = node.m_opacity};
+            PerDrawData shaderData {.m_model = model, .m_opacity = node.m_opacity, .m_unused = {0}};
             node.m_uboOffset = m_uboAllocator.Push(shaderData);
         }
 
