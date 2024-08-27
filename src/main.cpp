@@ -94,9 +94,17 @@ struct Primitive {
     GLsizei m_elementCount;
 };
 
+struct AABB {
+    float m_xMin, m_xMax;
+    float m_yMin, m_yMax;
+    float m_zMin, m_zMax;
+};
+
 struct Mesh {
-    glm::mat4 m_position;
     std::vector<Primitive> m_primitives;
+
+    // Axis-Aligned Bounding Box for frustum culling.
+    AABB m_aabb;
 };
 
 // Vertex Attributes!
@@ -325,6 +333,7 @@ private:
 
             struct GltfMesh {
                 std::vector<GltfPrimitive> m_primitives;
+                AABB m_aabb;
             };
 
             Mesh glitterMesh {};
@@ -375,6 +384,14 @@ private:
 
                             if (positionAccessor) {
                                 cgltf_accessor_read_float(positionAccessor, vertexIdx, &vertex.x, 3);
+
+                                // Calculate the AABB.
+                                gltfMesh.m_aabb.m_xMin = std::min(gltfMesh.m_aabb.m_xMin, vertex.x);
+                                gltfMesh.m_aabb.m_xMax = std::max(gltfMesh.m_aabb.m_xMax, vertex.x);
+                                gltfMesh.m_aabb.m_yMin = std::min(gltfMesh.m_aabb.m_yMin, vertex.y);
+                                gltfMesh.m_aabb.m_yMax = std::max(gltfMesh.m_aabb.m_yMax, vertex.y);
+                                gltfMesh.m_aabb.m_zMin = std::min(gltfMesh.m_aabb.m_zMin, vertex.z);
+                                gltfMesh.m_aabb.m_zMax = std::max(gltfMesh.m_aabb.m_zMax, vertex.z);
                             }
                             if (texCoordAccessor) {
                                 cgltf_accessor_read_float(texCoordAccessor, vertexIdx, &vertex.u, 2);
@@ -423,6 +440,8 @@ private:
                     // Add primitive to the Mesh.
                     glitterMesh.m_primitives.emplace_back(primitive);
                 }
+
+                glitterMesh.m_aabb = parsedMeshes[0].m_aabb;
 
                 m_meshes.emplace_back(glitterMesh);
             }
