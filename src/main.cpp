@@ -530,6 +530,45 @@ private:
         m_currentView = view;
         m_currentProjection = projection;
 
+        // Calculate the frustum planes using the Projection matrix.
+        struct Plane {
+            float a, b, c, d;
+        };
+        std::array<Plane, 6> frustumPlanes {};
+        {
+            Plane left {.a = projection[3][0] + projection[0][0],
+                .b = projection[3][1] + projection[0][1],
+                .c = projection[3][2] + projection[0][2],
+                .d = projection[3][3] + projection[0][3]};
+            Plane right {.a = projection[3][1] - projection[0][0],
+                .b = projection[3][1] - projection[0][1],
+                .c = projection[3][2] - projection[0][2],
+                .d = projection[3][3] - projection[0][3]};
+            Plane bottom {.a = projection[3][0] + projection[1][0],
+                .b = projection[3][1] + projection[1][1],
+                .c = projection[3][2] + projection[1][2],
+                .d = projection[3][3] + projection[1][3]};
+            Plane top {.a = projection[3][0] - projection[1][0],
+                .b = projection[3][1] - projection[1][1],
+                .c = projection[3][2] - projection[1][2],
+                .d = projection[3][3] - projection[1][3]};
+            Plane near {.a = projection[3][0] + projection[2][0],
+                .b = projection[3][1] + projection[2][1],
+                .c = projection[3][2] + projection[2][2],
+                .d = projection[3][3] + projection[2][3]};
+            Plane far {.a = projection[3][0] - projection[2][0],
+                .b = projection[3][1] - projection[2][1],
+                .c = projection[3][2] - projection[2][2],
+                .d = projection[3][3] - projection[2][3]};
+
+            frustumPlanes[0] = left;
+            frustumPlanes[1] = right;
+            frustumPlanes[2] = bottom;
+            frustumPlanes[3] = top;
+            frustumPlanes[4] = near;
+            frustumPlanes[5] = far;
+        }
+        
         // Write the CommonData into the UBO-backing CPU buffer.
         CommonData commonData = {.m_view = view,
             .m_projection = projection,
