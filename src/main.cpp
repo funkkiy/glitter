@@ -194,7 +194,7 @@ private:
                         break;
                     }
 
-                    for (int i = 0; i < 1; i++) {
+                    for (int i = 0; i < 500; i++) {
                         app->m_nodes.push_back(Node {.m_position = glm::sphericalRand(45.0f),
                             .m_texture = app->m_loadedTextures[std::rand() % app->m_loadedTextures.size()],
                             .m_meshID = std::rand() % app->m_meshes.size(),
@@ -204,6 +204,11 @@ private:
                             .m_shouldAnimate = true,
                             .m_culled = false});
                     }
+                }
+                break;
+            case GLFW_KEY_K:
+                if (action == GLFW_RELEASE) {
+                    app->m_frustumCulling = !app->m_frustumCulling;
                 }
                 break;
             case GLFW_KEY_ESCAPE:
@@ -549,12 +554,14 @@ private:
         std::array<Plane, 6> frustumPlanes {};
         glm::mat4 vp = projection * view;
         {
-            Plane left {.a = vp[3][0] + vp[0][0], .b = vp[3][1] + vp[0][1], .c = vp[3][2] + vp[0][2], .d = vp[3][3] + vp[0][3]};
-            Plane right {.a = vp[3][0] - vp[0][0], .b = vp[3][1] - vp[0][1], .c = vp[3][2] - vp[0][2], .d = vp[3][3] - vp[0][3]};
-            Plane bottom {.a = vp[3][0] + vp[1][0], .b = vp[3][1] + vp[1][1], .c = vp[3][2] + vp[1][2], .d = vp[3][3] + vp[1][3]};
-            Plane top {.a = vp[3][0] - vp[1][0], .b = vp[3][1] - vp[1][1], .c = vp[3][2] - vp[1][2], .d = vp[3][3] - vp[1][3]};
-            Plane near {.a = vp[3][0] + vp[2][0], .b = vp[3][1] + vp[2][1], .c = vp[3][2] + vp[2][2], .d = vp[3][3] + vp[2][3]};
-            Plane far {.a = vp[3][0] - vp[2][0], .b = vp[3][1] - vp[2][1], .c = vp[3][2] - vp[2][2], .d = vp[3][3] - vp[2][3]};
+            Plane left {.a = vp[0][3] + vp[0][0], .b = vp[1][3] + vp[1][0], .c = vp[2][3] + vp[2][0], .d = vp[3][3] + vp[3][0]};
+            Plane right {.a = vp[0][3] - vp[0][0], .b = vp[1][3] - vp[1][0], .c = vp[2][3] - vp[2][0], .d = vp[3][3] - vp[3][0]};
+
+            Plane bottom {.a = vp[0][3] + vp[0][1], .b = vp[1][3] + vp[1][1], .c = vp[2][3] + vp[2][1], .d = vp[3][3] + vp[3][1]};
+            Plane top {.a = vp[0][3] - vp[0][1], .b = vp[1][3] - vp[1][1], .c = vp[2][3] - vp[2][1], .d = vp[3][3] - vp[3][1]};
+
+            Plane near {.a = vp[0][3] + vp[0][2], .b = vp[1][3] + vp[1][2], .c = vp[2][3] + vp[2][2], .d = vp[3][3] + vp[3][2]};
+            Plane far {.a = vp[0][3] - vp[0][2], .b = vp[1][3] - vp[1][2], .c = vp[2][3] - vp[2][2], .d = vp[3][3] - vp[3][2]};
 
             frustumPlanes[0] = left;
             frustumPlanes[1] = right;
@@ -580,51 +587,59 @@ private:
                 continue;
             }
 
-            // Check if a `vec3` point is in the inside halfspace of a plane, for culling purposes.
-            auto isInsideHalfspace = [](glm::vec3 position, Plane& plane) {
-                float d = (plane.a * position.x) + (plane.b * position.y) + (plane.c * position.z) + plane.d;
+            if (m_frustumCulling) {
+                // Check if a `vec3` point is in the inside halfspace of a plane, for culling purposes.
+                auto isInsideHalfspace = [](glm::vec3& position, Plane& plane) {
+                    float d = (plane.a * position.x) + (plane.b * position.y) + (plane.c * position.z) + plane.d;
 
-                // Inside halfspace.
-                return d > 0;
-            };
+                    // Inside halfspace.
+                    return d > 0;
+                };
 
-            AABB aabb = m_meshes[node.m_meshID].m_aabb;
-            std::array aabbCorners = std::to_array({
-                glm::vec3 {aabb.m_localMin},
-                glm::vec3 {aabb.m_localMax.x, aabb.m_localMin.y, aabb.m_localMin.z},
-                glm::vec3 {aabb.m_localMin.x, aabb.m_localMax.y, aabb.m_localMin.z},
-                glm::vec3 {aabb.m_localMin.x, aabb.m_localMin.y, aabb.m_localMax.z},
-                glm::vec3 {aabb.m_localMax.x, aabb.m_localMin.y, aabb.m_localMax.z},
-                glm::vec3 {aabb.m_localMax.x, aabb.m_localMax.y, aabb.m_localMin.z},
-                glm::vec3 {aabb.m_localMin.x, aabb.m_localMax.y, aabb.m_localMax.z},
-                glm::vec3 {aabb.m_localMax},
-            });
+                // Obtain the AABB's scaled and translated transform.
+                glm::mat4 aabbTransform = glm::mat4(1.0f);
+                aabbTransform = glm::scale(aabbTransform, node.m_scale);
+                aabbTransform = glm::translate(aabbTransform, node.m_position);
 
-            // Transform the corners in `aabbCorners` into world space.
-            for (auto& corner : aabbCorners) {
-                corner *= node.m_scale;
-                corner += node.m_position;
-            }
+                AABB aabb = m_meshes[node.m_meshID].m_aabb;
+                std::array aabbCorners = std::to_array({
+                    glm::vec3 {aabb.m_localMin},
+                    glm::vec3 {aabb.m_localMax.x, aabb.m_localMin.y, aabb.m_localMin.z},
+                    glm::vec3 {aabb.m_localMin.x, aabb.m_localMax.y, aabb.m_localMin.z},
+                    glm::vec3 {aabb.m_localMin.x, aabb.m_localMin.y, aabb.m_localMax.z},
+                    glm::vec3 {aabb.m_localMax.x, aabb.m_localMin.y, aabb.m_localMax.z},
+                    glm::vec3 {aabb.m_localMax.x, aabb.m_localMax.y, aabb.m_localMin.z},
+                    glm::vec3 {aabb.m_localMin.x, aabb.m_localMax.y, aabb.m_localMax.z},
+                    glm::vec3 {aabb.m_localMax},
+                });
 
-            // Check if any corners of the AABB are inside one of the viewing frustums. If so, don't cull that Node.
-            bool cullNode = true;
-            for (auto& corner : aabbCorners) {
-                bool insideLeft = isInsideHalfspace(corner, frustumPlanes[0]);
-                bool insideRight = isInsideHalfspace(corner, frustumPlanes[1]);
-                bool insideBottom = isInsideHalfspace(corner, frustumPlanes[2]);
-                bool insideTop = isInsideHalfspace(corner, frustumPlanes[3]);
-                bool insideNear = isInsideHalfspace(corner, frustumPlanes[4]);
-                bool insideFar = isInsideHalfspace(corner, frustumPlanes[5]);
-
-                if (insideLeft || insideRight || insideBottom || insideTop || insideNear || insideFar) {
-                    cullNode = false;
-                    break;
+                // Transform the corners in `aabbCorners` into world space.
+                for (auto& corner : aabbCorners) {
+                    corner = glm::vec3(aabbTransform * glm::vec4(corner, 1.0f));
                 }
-            }
-            if (cullNode) {
-                numCulledNodes += 1;
-                node.m_culled = true;
-                continue;
+
+                // Check if any corners of the AABB are inside one of the viewing frustums. If so, don't cull that Node.
+                bool cullNode = true;
+                for (auto& corner : aabbCorners) {
+                    bool insideLeft = isInsideHalfspace(corner, frustumPlanes[0]);
+                    bool insideRight = isInsideHalfspace(corner, frustumPlanes[1]);
+                    bool insideBottom = isInsideHalfspace(corner, frustumPlanes[2]);
+                    bool insideTop = isInsideHalfspace(corner, frustumPlanes[3]);
+                    bool insideNear = isInsideHalfspace(corner, frustumPlanes[4]);
+                    bool insideFar = isInsideHalfspace(corner, frustumPlanes[5]);
+
+                    if (insideLeft && insideRight && insideBottom && insideTop && insideNear && insideFar) {
+                        cullNode = false;
+                        break;
+                    }
+                }
+                if (cullNode) {
+                    node.m_culled = true;
+                    numCulledNodes += 1;
+                    continue;
+                } else {
+                    node.m_culled = false;
+                }
             }
 
             // The Model has to follow the Scale-Rotate-Translate
@@ -649,8 +664,10 @@ private:
         std::vector<Node> opaqueNodes {};
         std::vector<Node> transparentNodes {};
         for (Node& node : m_nodes) {
-            if (node.m_culled) {
-                continue;
+            if (m_frustumCulling) {
+                if (node.m_culled) {
+                    continue;
+                }
             }
 
             if (node.m_opacity == 1.0f) {
@@ -771,6 +788,8 @@ private:
     std::vector<Node> m_nodes {};
 
     std::vector<Mesh> m_meshes {};
+
+    bool m_frustumCulling = true;
 };
 
 int main()
