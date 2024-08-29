@@ -539,6 +539,10 @@ private:
         m_currentProjection = projection;
 
         // Extract the frustum planes using the VP matrix.
+        // By using the combined View and Projection matrices, we should obtain the clipping planes in World Space.
+        // Proj: (View Space)  -> (Clip Space);
+        // View: (World Space) -> (View Space);
+        //   VP: (World Space) -> (Clip Space).
         struct Plane {
             float a, b, c, d;
         };
@@ -576,7 +580,7 @@ private:
                 continue;
             }
 
-            // Check if the Node is contained inside the Frustum for culling purposes.
+            // Check if a `vec3` point is in the inside halfspace of a plane, for culling purposes.
             auto isInsideHalfspace = [](glm::vec3 position, Plane& plane) {
                 float d = (plane.a * position.x) + (plane.b * position.y) + (plane.c * position.z) + plane.d;
 
@@ -584,26 +588,27 @@ private:
                 return d > 0;
             };
 
-            AABB localAABB = m_meshes[node.m_meshID].m_aabb;
-            std::array worldAABBCorners = std::to_array({
-                glm::vec3 {localAABB.m_localMin},
-                glm::vec3 {localAABB.m_localMax.x, localAABB.m_localMin.y, localAABB.m_localMin.z},
-                glm::vec3 {localAABB.m_localMin.x, localAABB.m_localMax.y, localAABB.m_localMin.z},
-                glm::vec3 {localAABB.m_localMin.x, localAABB.m_localMin.y, localAABB.m_localMax.z},
-                glm::vec3 {localAABB.m_localMax.x, localAABB.m_localMin.y, localAABB.m_localMax.z},
-                glm::vec3 {localAABB.m_localMax.x, localAABB.m_localMax.y, localAABB.m_localMin.z},
-                glm::vec3 {localAABB.m_localMin.x, localAABB.m_localMax.y, localAABB.m_localMax.z},
-                glm::vec3 {localAABB.m_localMax},
+            AABB aabb = m_meshes[node.m_meshID].m_aabb;
+            std::array aabbCorners = std::to_array({
+                glm::vec3 {aabb.m_localMin},
+                glm::vec3 {aabb.m_localMax.x, aabb.m_localMin.y, aabb.m_localMin.z},
+                glm::vec3 {aabb.m_localMin.x, aabb.m_localMax.y, aabb.m_localMin.z},
+                glm::vec3 {aabb.m_localMin.x, aabb.m_localMin.y, aabb.m_localMax.z},
+                glm::vec3 {aabb.m_localMax.x, aabb.m_localMin.y, aabb.m_localMax.z},
+                glm::vec3 {aabb.m_localMax.x, aabb.m_localMax.y, aabb.m_localMin.z},
+                glm::vec3 {aabb.m_localMin.x, aabb.m_localMax.y, aabb.m_localMax.z},
+                glm::vec3 {aabb.m_localMax},
             });
 
-            for (auto& corner : worldAABBCorners) {
+            // Transform the corners in `aabbCorners` into world space.
+            for (auto& corner : aabbCorners) {
                 corner *= node.m_scale;
                 corner += node.m_position;
             }
 
-            // Check if any corner of the AABB is inside one of the viewing frustums.
+            // Check if any corners of the AABB are inside one of the viewing frustums. If so, don't cull that Node.
             bool cullNode = true;
-            for (auto& corner : worldAABBCorners) {
+            for (auto& corner : aabbCorners) {
                 bool insideLeft = isInsideHalfspace(corner, frustumPlanes[0]);
                 bool insideRight = isInsideHalfspace(corner, frustumPlanes[1]);
                 bool insideBottom = isInsideHalfspace(corner, frustumPlanes[2]);
