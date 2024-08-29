@@ -76,11 +76,11 @@ list(APPEND GLITTER_SOURCES
     # glitter utility
     src/glitter/util/File.cpp
     src/glitter/util/File.h
-	
-	# glad
+
+    # glad
     vendor/glad/src/glad.c
-	
-	# stb
+
+    # stb
     vendor/stb/stb_image.cpp
 
     # cgltf
@@ -90,8 +90,8 @@ list(APPEND GLITTER_SOURCES
 list(APPEND GLITTER_INCLUDES
     # glitter
     src/glitter
-	
-	# glad
+
+    # glad
     vendor/glad/include
 
     # cgltf
@@ -99,7 +99,7 @@ list(APPEND GLITTER_INCLUDES
 )
 
 list(APPEND GLITTER_IGNORE_WARNINGS_INCLUDES
-	# stb
+    # stb
     vendor/stb
 )
 
