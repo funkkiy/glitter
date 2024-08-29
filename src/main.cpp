@@ -49,10 +49,7 @@ public:
     // Returns the offset after the object in the buffer.
     template <typename T> size_t Push(T& t)
     {
-        if (!m_initializedAlignment) {
-            glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &m_alignment);
-            m_initializedAlignment = true;
-        }
+        InitializeAlignment();
 
         // Calculate total amount of bytes that will be pushed.
         size_t futureSize = m_buffer.size() + sizeof(T);
@@ -75,12 +72,20 @@ public:
     size_t Size() { return m_buffer.size(); }
     GLint GetAlignment()
     {
-        assert(m_initializedAlignment);
+        InitializeAlignment();
         return m_alignment;
     }
     void Clear() { m_buffer.clear(); }
 
 private:
+    void InitializeAlignment()
+    {
+        if (!m_initializedAlignment) {
+            glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &m_alignment);
+            m_initializedAlignment = true;
+        }
+    }
+
     std::vector<uint8_t> m_buffer {};
 
     bool m_initializedAlignment {false};
@@ -95,9 +100,8 @@ struct Primitive {
 };
 
 struct AABB {
-    float m_xMin, m_xMax;
-    float m_yMin, m_yMax;
-    float m_zMin, m_zMax;
+    glm::vec3 m_localMin;
+    glm::vec3 m_localMax;
 };
 
 struct Mesh {
@@ -170,6 +174,11 @@ private:
         glfwSetWindowUserPointer(m_window, this);
         glfwSetWindowSizeCallback(m_window, [](GLFWwindow* window, int width, int height) {
             auto app = static_cast<GlitterApplication*>(glfwGetWindowUserPointer(window));
+
+            if (width == 0 || height == 0) {
+                return;
+            }
+
             app->m_windowWidth = width;
             app->m_windowHeight = height;
             glViewport(0, 0, width, height);
@@ -180,22 +189,21 @@ private:
             switch (key) {
             case GLFW_KEY_SPACE:
                 if (action == GLFW_RELEASE) {
-                    // We only accept up to 999 nodes.
-                    if (app->m_nodes.size() >= 999) {
+                    // We only accept up to 9999 nodes.
+                    if (app->m_nodes.size() >= 9999) {
                         break;
                     }
 
-                    static bool shouldAnimate = true;
-
-                    app->m_nodes.push_back(Node {.m_position = glm::sphericalRand(6.0f),
-                        .m_texture = app->m_loadedTextures[std::rand() % app->m_loadedTextures.size()],
-                        .m_meshID = std::rand() % app->m_meshes.size(),
-                        .m_uboOffset = 0,
-                        .m_opacity = 1.0f,
-                        .m_scale = glm::vec3(0.25f),
-                        .m_shouldAnimate = shouldAnimate});
-
-                    shouldAnimate = !shouldAnimate;
+                    for (int i = 0; i < 1; i++) {
+                        app->m_nodes.push_back(Node {.m_position = glm::sphericalRand(45.0f),
+                            .m_texture = app->m_loadedTextures[std::rand() % app->m_loadedTextures.size()],
+                            .m_meshID = std::rand() % app->m_meshes.size(),
+                            .m_uboOffset = 0,
+                            .m_opacity = 1.0f,
+                            .m_scale = glm::vec3(0.25f),
+                            .m_shouldAnimate = true,
+                            .m_culled = false});
+                    }
                 }
                 break;
             case GLFW_KEY_ESCAPE:
@@ -386,12 +394,11 @@ private:
                                 cgltf_accessor_read_float(positionAccessor, vertexIdx, &vertex.x, 3);
 
                                 // Calculate the AABB.
-                                gltfMesh.m_aabb.m_xMin = std::min(gltfMesh.m_aabb.m_xMin, vertex.x);
-                                gltfMesh.m_aabb.m_xMax = std::max(gltfMesh.m_aabb.m_xMax, vertex.x);
-                                gltfMesh.m_aabb.m_yMin = std::min(gltfMesh.m_aabb.m_yMin, vertex.y);
-                                gltfMesh.m_aabb.m_yMax = std::max(gltfMesh.m_aabb.m_yMax, vertex.y);
-                                gltfMesh.m_aabb.m_zMin = std::min(gltfMesh.m_aabb.m_zMin, vertex.z);
-                                gltfMesh.m_aabb.m_zMax = std::max(gltfMesh.m_aabb.m_zMax, vertex.z);
+                                auto& aabb = gltfMesh.m_aabb;
+                                aabb.m_localMin = glm::vec3 {std::min(aabb.m_localMin.x, vertex.x),
+                                    std::min(aabb.m_localMin.y, vertex.y), std::min(aabb.m_localMin.z, vertex.z)};
+                                aabb.m_localMax = glm::vec3 {std::max(aabb.m_localMax.x, vertex.x),
+                                    std::max(aabb.m_localMax.y, vertex.y), std::max(aabb.m_localMax.z, vertex.z)};
                             }
                             if (texCoordAccessor) {
                                 cgltf_accessor_read_float(texCoordAccessor, vertexIdx, &vertex.u, 2);
@@ -474,8 +481,9 @@ private:
         glCreateBuffers(1, &ubo);
         glObjectLabel(GL_BUFFER, ubo, -1, "UBO");
 
-        // Just enough for the Common stuff and 999 Nodes.
-        glNamedBufferData(ubo, sizeof(CommonData) + (sizeof(PerDrawData) * 999), nullptr, GL_DYNAMIC_DRAW);
+        // Just enough for the Common stuff and 9999 Nodes.
+        glNamedBufferData(
+            ubo, sizeof(CommonData) + ((sizeof(PerDrawData) + m_uboAllocator.GetAlignment()) * 9999), nullptr, GL_DYNAMIC_DRAW);
         m_currentUBO = ubo;
 
         // Load some Node textures.
@@ -530,36 +538,19 @@ private:
         m_currentView = view;
         m_currentProjection = projection;
 
-        // Calculate the frustum planes using the Projection matrix.
+        // Extract the frustum planes using the VP matrix.
         struct Plane {
             float a, b, c, d;
         };
         std::array<Plane, 6> frustumPlanes {};
+        glm::mat4 vp = projection * view;
         {
-            Plane left {.a = projection[3][0] + projection[0][0],
-                .b = projection[3][1] + projection[0][1],
-                .c = projection[3][2] + projection[0][2],
-                .d = projection[3][3] + projection[0][3]};
-            Plane right {.a = projection[3][1] - projection[0][0],
-                .b = projection[3][1] - projection[0][1],
-                .c = projection[3][2] - projection[0][2],
-                .d = projection[3][3] - projection[0][3]};
-            Plane bottom {.a = projection[3][0] + projection[1][0],
-                .b = projection[3][1] + projection[1][1],
-                .c = projection[3][2] + projection[1][2],
-                .d = projection[3][3] + projection[1][3]};
-            Plane top {.a = projection[3][0] - projection[1][0],
-                .b = projection[3][1] - projection[1][1],
-                .c = projection[3][2] - projection[1][2],
-                .d = projection[3][3] - projection[1][3]};
-            Plane near {.a = projection[3][0] + projection[2][0],
-                .b = projection[3][1] + projection[2][1],
-                .c = projection[3][2] + projection[2][2],
-                .d = projection[3][3] + projection[2][3]};
-            Plane far {.a = projection[3][0] - projection[2][0],
-                .b = projection[3][1] - projection[2][1],
-                .c = projection[3][2] - projection[2][2],
-                .d = projection[3][3] - projection[2][3]};
+            Plane left {.a = vp[3][0] + vp[0][0], .b = vp[3][1] + vp[0][1], .c = vp[3][2] + vp[0][2], .d = vp[3][3] + vp[0][3]};
+            Plane right {.a = vp[3][0] - vp[0][0], .b = vp[3][1] - vp[0][1], .c = vp[3][2] - vp[0][2], .d = vp[3][3] - vp[0][3]};
+            Plane bottom {.a = vp[3][0] + vp[1][0], .b = vp[3][1] + vp[1][1], .c = vp[3][2] + vp[1][2], .d = vp[3][3] + vp[1][3]};
+            Plane top {.a = vp[3][0] - vp[1][0], .b = vp[3][1] - vp[1][1], .c = vp[3][2] - vp[1][2], .d = vp[3][3] - vp[1][3]};
+            Plane near {.a = vp[3][0] + vp[2][0], .b = vp[3][1] + vp[2][1], .c = vp[3][2] + vp[2][2], .d = vp[3][3] + vp[2][3]};
+            Plane far {.a = vp[3][0] - vp[2][0], .b = vp[3][1] - vp[2][1], .c = vp[3][2] - vp[2][2], .d = vp[3][3] - vp[2][3]};
 
             frustumPlanes[0] = left;
             frustumPlanes[1] = right;
@@ -568,7 +559,7 @@ private:
             frustumPlanes[4] = near;
             frustumPlanes[5] = far;
         }
-        
+
         // Write the CommonData into the UBO-backing CPU buffer.
         CommonData commonData = {.m_view = view,
             .m_projection = projection,
@@ -578,9 +569,56 @@ private:
         m_uboAllocator.Push(commonData);
 
         // Write each Node's PerDrawData into the buffer.
+        int numCulledNodes = 0;
         for (auto& node : m_nodes) {
             // Don't bother writing data for a totally transparent Node.
             if (node.m_opacity == 0.0f) {
+                continue;
+            }
+
+            // Check if the Node is contained inside the Frustum for culling purposes.
+            auto isInsideHalfspace = [](glm::vec3 position, Plane& plane) {
+                float d = (plane.a * position.x) + (plane.b * position.y) + (plane.c * position.z) + plane.d;
+
+                // Inside halfspace.
+                return d > 0;
+            };
+
+            AABB localAABB = m_meshes[node.m_meshID].m_aabb;
+            std::array worldAABBCorners = std::to_array({
+                glm::vec3 {localAABB.m_localMin},
+                glm::vec3 {localAABB.m_localMax.x, localAABB.m_localMin.y, localAABB.m_localMin.z},
+                glm::vec3 {localAABB.m_localMin.x, localAABB.m_localMax.y, localAABB.m_localMin.z},
+                glm::vec3 {localAABB.m_localMin.x, localAABB.m_localMin.y, localAABB.m_localMax.z},
+                glm::vec3 {localAABB.m_localMax.x, localAABB.m_localMin.y, localAABB.m_localMax.z},
+                glm::vec3 {localAABB.m_localMax.x, localAABB.m_localMax.y, localAABB.m_localMin.z},
+                glm::vec3 {localAABB.m_localMin.x, localAABB.m_localMax.y, localAABB.m_localMax.z},
+                glm::vec3 {localAABB.m_localMax},
+            });
+
+            for (auto& corner : worldAABBCorners) {
+                corner *= node.m_scale;
+                corner += node.m_position;
+            }
+
+            // Check if any corner of the AABB is inside one of the viewing frustums.
+            bool cullNode = true;
+            for (auto& corner : worldAABBCorners) {
+                bool insideLeft = isInsideHalfspace(corner, frustumPlanes[0]);
+                bool insideRight = isInsideHalfspace(corner, frustumPlanes[1]);
+                bool insideBottom = isInsideHalfspace(corner, frustumPlanes[2]);
+                bool insideTop = isInsideHalfspace(corner, frustumPlanes[3]);
+                bool insideNear = isInsideHalfspace(corner, frustumPlanes[4]);
+                bool insideFar = isInsideHalfspace(corner, frustumPlanes[5]);
+
+                if (insideLeft || insideRight || insideBottom || insideTop || insideNear || insideFar) {
+                    cullNode = false;
+                    break;
+                }
+            }
+            if (cullNode) {
+                numCulledNodes += 1;
+                node.m_culled = true;
                 continue;
             }
 
@@ -593,6 +631,7 @@ private:
             PerDrawData shaderData {.m_model = model, .m_opacity = node.m_opacity, .m_unused = {0}};
             node.m_uboOffset = m_uboAllocator.Push(shaderData);
         }
+        spdlog::info("{} nodes, culled {} nodes!", m_nodes.size(), numCulledNodes);
 
         // Upload the CPU-backing buffer into the UBO.
         glNamedBufferSubData(m_currentUBO, 0, sizeof(uint8_t) * m_uboAllocator.Size(), m_uboAllocator.Data());
@@ -605,6 +644,10 @@ private:
         std::vector<Node> opaqueNodes {};
         std::vector<Node> transparentNodes {};
         for (Node& node : m_nodes) {
+            if (node.m_culled) {
+                continue;
+            }
+
             if (node.m_opacity == 1.0f) {
                 opaqueNodes.emplace_back(node);
             } else if (node.m_opacity != 0.0f) {
@@ -718,6 +761,7 @@ private:
         float m_opacity;
         glm::vec3 m_scale;
         bool m_shouldAnimate;
+        bool m_culled;
     };
     std::vector<Node> m_nodes {};
 
