@@ -241,7 +241,7 @@ private:
         // Initialize Dear ImGui backend.
         ImGui_ImplGlfw_InitForOpenGL(m_window, true);
         ImGui_ImplOpenGL3_Init("#version 460");
-        
+
         return InitializeResult::Ok;
     }
 
@@ -681,7 +681,8 @@ private:
         ImGui::Begin("Glitter Debug");
         if (ImGui::CollapsingHeader("Performance", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Checkbox("Frustum Culling", &m_frustumCulling);
-            ImGui::Text("Culled Nodes: %d/%d (%.2f%%)", numCulledNodes, m_nodes.size(), m_nodes.size() != 0 ? static_cast<float>(numCulledNodes) / m_nodes.size() * 100.0f : 0.0f);
+            ImGui::Text("Culled Nodes: %d/%d (%.2f%%)", numCulledNodes, m_nodes.size(),
+                m_nodes.size() != 0 ? static_cast<float>(numCulledNodes) / m_nodes.size() * 100.0f : 0.0f);
             if (ImGui::Button("Clear Nodes", ImVec2(-1.0f, 0.0f))) {
                 m_nodes.clear();
             }
