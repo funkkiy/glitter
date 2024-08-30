@@ -541,8 +541,7 @@ private:
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        // Add Debug UI.
-
+        // Add Dear ImGui Demo UI.
         ImGui::ShowDemoWindow();
 
         for (Node& node : m_nodes) {
@@ -677,13 +676,17 @@ private:
             PerDrawData shaderData {.m_model = model, .m_opacity = node.m_opacity, .m_unused = {0}};
             node.m_uboOffset = m_uboAllocator.Push(shaderData);
         }
+
+        // Add Debug UI.
         ImGui::Begin("Glitter Debug");
-        if (ImGui::CollapsingHeader("Nodes", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::CollapsingHeader("Performance", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Checkbox("Frustum Culling", &m_frustumCulling);
-            ImGui::Text("Culled Nodes: %d/%d", numCulledNodes, m_nodes.size());
+            ImGui::Text("Culled Nodes: %d/%d (%.2f%%)", numCulledNodes, m_nodes.size(), m_nodes.size() != 0 ? static_cast<float>(numCulledNodes) / m_nodes.size() * 100.0f : 0.0f);
+            if (ImGui::Button("Clear Nodes", ImVec2(-1.0f, 0.0f))) {
+                m_nodes.clear();
+            }
         }
         ImGui::End();
-
 
         // Upload the CPU-backing buffer into the UBO.
         glNamedBufferSubData(m_currentUBO, 0, sizeof(uint8_t) * m_uboAllocator.Size(), m_uboAllocator.Data());
