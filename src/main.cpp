@@ -268,6 +268,7 @@ private:
                     break;
                 case GL_DEBUG_TYPE_PUSH_GROUP:
                 case GL_DEBUG_TYPE_POP_GROUP:
+                case GL_DEBUG_TYPE_OTHER:
                     break;
                 default:
                     spdlog::warn("{}", msg);
