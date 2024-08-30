@@ -771,8 +771,12 @@ private:
         }
 
         // Render Dear ImGui.
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 2, -1, "Dear ImGui");
+        {
+            ImGui::Render();
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        }
+        glPopDebugGroup();
 
         glfwSwapBuffers(m_window);
     }
