@@ -85,6 +85,15 @@ list(APPEND GLITTER_SOURCES
 
     # cgltf
     vendor/cgltf/cgltf.cpp
+
+    # imgui
+    vendor/imgui/imgui.cpp
+    vendor/imgui/imgui_demo.cpp
+    vendor/imgui/imgui_draw.cpp
+    vendor/imgui/imgui_tables.cpp
+    vendor/imgui/imgui_widgets.cpp
+    vendor/imgui/backends/imgui_impl_glfw.cpp
+    vendor/imgui/backends/imgui_impl_opengl3.cpp
 )
 
 list(APPEND GLITTER_INCLUDES
@@ -96,6 +105,10 @@ list(APPEND GLITTER_INCLUDES
 
     # cgltf
     vendor/cgltf
+    
+    # imgui
+    vendor/imgui
+    vendor/imgui/backends
 )
 
 list(APPEND GLITTER_IGNORE_WARNINGS_INCLUDES

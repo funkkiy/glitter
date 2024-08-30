@@ -10,3 +10,6 @@
 
 # Build Directory
 build/
+
+# ImGui Settings
+data/imgui.ini

@@ -13,6 +13,10 @@
 #include <spdlog/spdlog.h>
 #include <stb_image.h>
 
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+
 #include <algorithm>
 #include <array>
 #include <optional>
@@ -228,6 +232,16 @@ private:
         // Seed the RNG.
         std::srand(static_cast<unsigned int>(std::time(nullptr)));
 
+        // Initialize Dear ImGui context.
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGuiIO& io = ImGui::GetIO();
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+        // Initialize Dear ImGui backend.
+        ImGui_ImplGlfw_InitForOpenGL(m_window, true);
+        ImGui_ImplOpenGL3_Init("#version 460");
+        
         return InitializeResult::Ok;
     }
 
@@ -519,6 +533,17 @@ private:
 
     void Tick()
     {
+        glfwPollEvents();
+
+        // Start Dear Imgui frame.
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        // Add Debug UI.
+
+        ImGui::ShowDemoWindow();
+
         for (Node& node : m_nodes) {
             if (node.m_shouldAnimate) {
                 node.m_opacity = std::clamp(std::abs(1.25 * std::cos(glfwGetTime())), 0.0, 1.0);
@@ -651,7 +676,13 @@ private:
             PerDrawData shaderData {.m_model = model, .m_opacity = node.m_opacity, .m_unused = {0}};
             node.m_uboOffset = m_uboAllocator.Push(shaderData);
         }
-        spdlog::info("{} nodes, culled {} nodes!", m_nodes.size(), numCulledNodes);
+        ImGui::Begin("Glitter Debug");
+        if (ImGui::CollapsingHeader("Nodes", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Checkbox("Frustum Culling", &m_frustumCulling);
+            ImGui::Text("Culled Nodes: %d/%d", numCulledNodes, m_nodes.size());
+        }
+        ImGui::End();
+
 
         // Upload the CPU-backing buffer into the UBO.
         glNamedBufferSubData(m_currentUBO, 0, sizeof(uint8_t) * m_uboAllocator.Size(), m_uboAllocator.Data());
@@ -734,13 +765,23 @@ private:
             glPopDebugGroup();
         }
 
+        // Render Dear ImGui.
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
         glfwSwapBuffers(m_window);
-        glfwPollEvents();
     }
 
     void Finish()
     {
         spdlog::info("Stopping...");
+
+        // Shutdown Dear ImGui.
+        ImGui_ImplOpenGL3_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
+
+        // Shutdown GLFW.
         glfwTerminate();
     }
 
@@ -749,8 +790,8 @@ private:
     GLuint m_currentVAO {};
     GLuint m_currentUBO {};
 
-    uint32_t m_windowWidth {640};
-    uint32_t m_windowHeight {480};
+    uint32_t m_windowWidth {1366};
+    uint32_t m_windowHeight {768};
 
     glm::mat4 m_currentView {};
     glm::mat4 m_currentProjection {};
