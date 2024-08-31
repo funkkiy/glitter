@@ -322,15 +322,7 @@ private:
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         // Create the Vertex and Fragment shaders.
-        GLint shadersOk = true;
-
-        auto printErrorMsg = [](GLuint shader, const char* shaderType) {
-            GLchar error[512];
-            GLsizei errorLen = 0;
-            glGetShaderInfoLog(shader, 512, &errorLen, error);
-            spdlog::error("[{}] {}", shaderType, error);
-        };
-
+        
         // Vertex Shader.
         GLuint vertexShader = CreateShaderFromPath(GL_VERTEX_SHADER, "shaders/VertexShader.glsl").value_or(0);
         if (!vertexShader) {
