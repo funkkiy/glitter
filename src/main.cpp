@@ -124,6 +124,7 @@ struct MeshVertex {
     }
 
     GLint res = GL_FALSE;
+
     GLuint shader = glCreateShader(type);
     glObjectLabel(GL_SHADER, shader, -1, type == GL_VERTEX_SHADER ? "Vertex Shader" : "Fragment Shader");
     glShaderSource(shader, 1, &src, nullptr);
@@ -156,6 +157,34 @@ struct MeshVertex {
     }
 
     return CreateShader(type, src.value().c_str());
+}
+
+[[nodiscard]] std::optional<GLuint> LinkProgram(GLuint vertexShader, GLuint fragmentShader, const char* name)
+{
+    GLuint program = glCreateProgram();
+    glObjectLabel(GL_PROGRAM, program, -1, name);
+    glAttachShader(program, vertexShader);
+    glAttachShader(program, fragmentShader);
+    glLinkProgram(program);
+
+    // The shaders can be safely deleted after being linked into a Program.
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+
+    // Check if the Program was linked successfully.
+    GLint res = GL_FALSE;
+    glGetProgramiv(program, GL_LINK_STATUS, &res);
+    if (res == GL_FALSE) {
+        GLchar error[512];
+        GLsizei errorLen = 0;
+        glGetProgramInfoLog(program, 512, &errorLen, error);
+        spdlog::error("[program] {}", error);
+
+        glDeleteProgram(program);
+        return std::nullopt;
+    }
+
+    return program;
 }
 
 class GlitterApplication {
@@ -283,7 +312,6 @@ private:
 
     enum class [[nodiscard]] PrepareResult {
         Ok,
-        ShaderLoadError,
         ShaderCompileError,
         ProgramLinkError,
     };
@@ -321,38 +349,31 @@ private:
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-        // Create the Vertex and Fragment shaders.
-        
-        // Vertex Shader.
-        GLuint vertexShader = CreateShaderFromPath(GL_VERTEX_SHADER, "shaders/VertexShader.glsl").value_or(0);
-        if (!vertexShader) {
+        // Create the Debug shaders and program..
+        GLuint debugVS = CreateShaderFromPath(GL_VERTEX_SHADER, "shaders/debug/DebugVS.glsl").value_or(0);
+        GLuint debugFS = CreateShaderFromPath(GL_FRAGMENT_SHADER, "shaders/debug/DebugFS.glsl").value_or(0);
+        if (!debugVS || !debugFS) {
             return PrepareResult::ShaderCompileError;
         }
 
-        // Fragment Shader.
-        GLuint fragmentShader = CreateShaderFromPath(GL_FRAGMENT_SHADER, "shaders/FragShader.glsl").value_or(0);
-        if (!fragmentShader) {
-            return PrepareResult::ShaderCompileError;
-        }
-
-        // Link the shaders into a Program.
-        GLuint shaderProgram = glCreateProgram();
-        glObjectLabel(GL_PROGRAM, shaderProgram, -1, "Shader Program");
-        glAttachShader(shaderProgram, vertexShader);
-        glAttachShader(shaderProgram, fragmentShader);
-        glLinkProgram(shaderProgram);
-
-        // The shaders can be safely deleted after being linked into a Program.
-        glDeleteShader(vertexShader);
-        glDeleteShader(fragmentShader);
-
-        // Check if the Program was linked successfully.
-        GLint linkOk = GL_FALSE;
-        glGetProgramiv(shaderProgram, GL_LINK_STATUS, &linkOk);
-        if (linkOk == GL_FALSE) {
+        GLuint debugProgram = LinkProgram(debugVS, debugFS, "Debug Program").value_or(0);
+        if (!debugProgram) {
             return PrepareResult::ProgramLinkError;
         }
-        m_currentProgram = shaderProgram;
+
+        // Create the Main shaders and program.
+        GLuint mainVS = CreateShaderFromPath(GL_VERTEX_SHADER, "shaders/MainVS.glsl").value_or(0);
+        GLuint mainFS = CreateShaderFromPath(GL_FRAGMENT_SHADER, "shaders/MainFS.glsl").value_or(0);
+        if (!mainVS || !mainFS) {
+            return PrepareResult::ShaderCompileError;
+        }
+
+        GLuint mainProgram = LinkProgram(mainVS, mainFS, "Main Program").value_or(0);
+        if (!mainProgram) {
+            return PrepareResult::ProgramLinkError;
+        }
+
+        m_currentProgram = mainProgram;
 
         // glTF mesh!
         std::array meshPaths(std::to_array<const char*>({"meshes/teapot.glb"}));
