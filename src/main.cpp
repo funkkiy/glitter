@@ -540,7 +540,7 @@ private:
 
         for (Node& node : m_nodes) {
             if (node.m_shouldAnimate) {
-                node.m_opacity = std::clamp(std::abs(1.25 * std::cos(glfwGetTime())), 0.0, 1.0);
+                node.m_opacity = std::clamp(std::abs(1.25f * std::cosf(static_cast<float>(glfwGetTime()))), 0.0f, 1.0f);
             }
         }
     }
