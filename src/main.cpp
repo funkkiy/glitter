@@ -361,6 +361,22 @@ private:
             return PrepareResult::ProgramLinkError;
         }
 
+        m_debugProgram = debugProgram;
+
+        {
+            // Create Debug VAO.
+            GLuint VAO;
+            glCreateVertexArrays(1, &VAO);
+            glObjectLabel(GL_VERTEX_ARRAY, VAO, -1, "Debug VAO");
+
+            // Declare the Position Attribute.
+            glEnableVertexArrayAttrib(VAO, 0);
+            glVertexArrayAttribFormat(VAO, 0, 3, GL_FLOAT, GL_FALSE, offsetof(DebugVertex, x));
+            glVertexArrayAttribBinding(VAO, 0, 0);
+
+            m_debugVAO = VAO;
+        }
+
         // Create the Main shaders and program.
         GLuint mainVS = CreateShaderFromPath(GL_VERTEX_SHADER, "shaders/MainVS.glsl").value_or(0);
         GLuint mainFS = CreateShaderFromPath(GL_FRAGMENT_SHADER, "shaders/MainFS.glsl").value_or(0);
@@ -373,7 +389,7 @@ private:
             return PrepareResult::ProgramLinkError;
         }
 
-        m_currentProgram = mainProgram;
+        m_mainProgram = mainProgram;
 
         // glTF mesh!
         std::array meshPaths(std::to_array<const char*>({"meshes/teapot.glb"}));
@@ -524,7 +540,7 @@ private:
         glVertexArrayAttribFormat(VAO, 2, 3, GL_FLOAT, GL_FALSE, offsetof(MeshVertex, nx));
         glVertexArrayAttribBinding(VAO, 2, 0);
 
-        m_currentVAO = VAO;
+        m_mainVAO = VAO;
 
         // Create empty UBO buffer.
         GLuint ubo {};
@@ -534,7 +550,7 @@ private:
         // Just enough for the Common stuff and 9999 Nodes.
         glNamedBufferData(
             ubo, sizeof(CommonData) + ((sizeof(PerDrawData) + m_uboAllocator.GetAlignment()) * 9999), nullptr, GL_DYNAMIC_DRAW);
-        m_currentUBO = ubo;
+        m_mainUBO = ubo;
 
         // Load some Node textures.
         std::array texturePaths(std::to_array<const char*>({"textures/Tile.png", "textures/Cobble.png"}));
@@ -566,13 +582,16 @@ private:
     {
         glfwPollEvents();
 
+        // Clear Debug data.
+        m_debugData.Clear();
+
         // Start Dear Imgui frame.
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
         // Add Dear ImGui Demo UI.
-        ImGui::ShowDemoWindow();
+        // ImGui::ShowDemoWindow();
 
         for (Node& node : m_nodes) {
             if (node.m_shouldAnimate) {
@@ -658,19 +677,35 @@ private:
 
                 AABB aabb = m_meshes[node.m_meshID].m_aabb;
                 std::array aabbCorners = std::to_array({
-                    glm::vec3 {aabb.m_localMin},
-                    glm::vec3 {aabb.m_localMax.x, aabb.m_localMin.y, aabb.m_localMin.z},
-                    glm::vec3 {aabb.m_localMin.x, aabb.m_localMax.y, aabb.m_localMin.z},
-                    glm::vec3 {aabb.m_localMin.x, aabb.m_localMin.y, aabb.m_localMax.z},
-                    glm::vec3 {aabb.m_localMax.x, aabb.m_localMin.y, aabb.m_localMax.z},
-                    glm::vec3 {aabb.m_localMax.x, aabb.m_localMax.y, aabb.m_localMin.z},
-                    glm::vec3 {aabb.m_localMin.x, aabb.m_localMax.y, aabb.m_localMax.z},
-                    glm::vec3 {aabb.m_localMax},
+                    /* 0 */ glm::vec3 {aabb.m_localMin},
+                    /* 1 */ glm::vec3 {aabb.m_localMax.x, aabb.m_localMin.y, aabb.m_localMin.z},
+                    /* 2 */ glm::vec3 {aabb.m_localMin.x, aabb.m_localMax.y, aabb.m_localMin.z},
+                    /* 3 */ glm::vec3 {aabb.m_localMin.x, aabb.m_localMin.y, aabb.m_localMax.z},
+                    /* 4 */ glm::vec3 {aabb.m_localMax.x, aabb.m_localMin.y, aabb.m_localMax.z},
+                    /* 5 */ glm::vec3 {aabb.m_localMax.x, aabb.m_localMax.y, aabb.m_localMin.z},
+                    /* 6 */ glm::vec3 {aabb.m_localMin.x, aabb.m_localMax.y, aabb.m_localMax.z},
+                    /* 7 */ glm::vec3 {aabb.m_localMax},
                 });
 
                 // Transform the corners in `aabbCorners` into world space.
                 for (auto& corner : aabbCorners) {
                     corner = glm::vec3(aabbTransform * glm::vec4(corner, 1.0f));
+                }
+
+                // Draw each AABB's lines using PushDebugLine.
+                if (m_drawAABBs) {
+                    m_debugData.PushDebugLine(aabbCorners[0], aabbCorners[1]);
+                    m_debugData.PushDebugLine(aabbCorners[0], aabbCorners[2]);
+                    m_debugData.PushDebugLine(aabbCorners[0], aabbCorners[3]);
+                    m_debugData.PushDebugLine(aabbCorners[1], aabbCorners[4]);
+                    m_debugData.PushDebugLine(aabbCorners[1], aabbCorners[5]);
+                    m_debugData.PushDebugLine(aabbCorners[2], aabbCorners[5]);
+                    m_debugData.PushDebugLine(aabbCorners[2], aabbCorners[6]);
+                    m_debugData.PushDebugLine(aabbCorners[3], aabbCorners[4]);
+                    m_debugData.PushDebugLine(aabbCorners[3], aabbCorners[6]);
+                    m_debugData.PushDebugLine(aabbCorners[4], aabbCorners[7]);
+                    m_debugData.PushDebugLine(aabbCorners[5], aabbCorners[7]);
+                    m_debugData.PushDebugLine(aabbCorners[7], aabbCorners[6]);
                 }
 
                 // Check if any corners of the AABB are inside one of the viewing frustums. If so, don't cull that Node.
@@ -717,14 +752,19 @@ private:
                 m_nodes.clear();
             }
         }
+        if (ImGui::CollapsingHeader("Debug View", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Checkbox("Debug Lines", &m_debugLines);
+            ImGui::SameLine();
+            ImGui::Checkbox("Draw AABBs", &m_drawAABBs);
+        }
         ImGui::End();
 
         // Upload the CPU-backing buffer into the UBO.
-        glNamedBufferSubData(m_currentUBO, 0, sizeof(uint8_t) * m_uboAllocator.Size(), m_uboAllocator.Data());
+        glNamedBufferSubData(m_mainUBO, 0, sizeof(uint8_t) * m_uboAllocator.Size(), m_uboAllocator.Data());
 
         // Bind the Program and VAO.
-        glUseProgram(m_currentProgram);
-        glBindVertexArray(m_currentVAO);
+        glUseProgram(m_mainProgram);
+        glBindVertexArray(m_mainVAO);
 
         // Split Node elements between opaque and transparent.
         std::vector<Node> opaqueNodes {};
@@ -760,16 +800,16 @@ private:
 
                 for (auto& primitive : m_meshes[meshIdx].m_primitives) {
                     // Attach the VBO to the VAO.
-                    glVertexArrayVertexBuffer(m_currentVAO, 0, primitive.m_vbo, 0, sizeof(MeshVertex));
+                    glVertexArrayVertexBuffer(m_mainVAO, 0, primitive.m_vbo, 0, sizeof(MeshVertex));
 
                     // Attach the EBO to the VAO.
-                    glVertexArrayElementBuffer(m_currentVAO, primitive.m_ebo);
+                    glVertexArrayElementBuffer(m_mainVAO, primitive.m_ebo);
 
                     // Bind the Common UBO data into the first slot of the UBO.
-                    glBindBufferRange(GL_UNIFORM_BUFFER, 0, m_currentUBO, 0, sizeof(CommonData));
+                    glBindBufferRange(GL_UNIFORM_BUFFER, 0, m_mainUBO, 0, sizeof(CommonData));
 
                     // Bind the Per-Draw UBO data into the second slot of the UBO.
-                    glBindBufferRange(GL_UNIFORM_BUFFER, 1, m_currentUBO, node.m_uboOffset, sizeof(PerDrawData));
+                    glBindBufferRange(GL_UNIFORM_BUFFER, 1, m_mainUBO, node.m_uboOffset, sizeof(PerDrawData));
 
                     // Bind the texture.
                     glBindTextureUnit(0, node.m_texture);
@@ -800,8 +840,35 @@ private:
             glPopDebugGroup();
         }
 
+        // Render Debug.
+        if (m_debugLines && m_debugData.m_debugLines.size()) {
+            glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 2, -1, "Debug");
+            {
+                // Bind the Program and VAO.
+                glUseProgram(m_debugProgram);
+                glBindVertexArray(m_debugVAO);
+
+                // Create VBO.
+                GLuint VBO;
+                glCreateBuffers(1, &VBO);
+                glNamedBufferStorage(
+                    VBO, sizeof(DebugVertex) * m_debugData.m_debugLines.size(), m_debugData.m_debugLines.data(), 0);
+                glObjectLabel(GL_BUFFER, VBO, -1, "Debug VBO");
+
+                // Attach the VBO to the VAO.
+                glVertexArrayVertexBuffer(m_debugVAO, 0, VBO, 0, sizeof(DebugVertex));
+
+                // Bind the Common UBO data into the first slot of the UBO.
+                glBindBufferRange(GL_UNIFORM_BUFFER, 0, m_mainUBO, 0, sizeof(CommonData));
+
+                // Draw the Primitive!
+                glDrawArrays(GL_LINES, 0, m_debugData.m_debugLines.size());
+            }
+            glPopDebugGroup();
+        }
+
         // Render Dear ImGui.
-        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 2, -1, "Dear ImGui");
+        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 3, -1, "Dear ImGui");
         {
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -825,9 +892,30 @@ private:
     }
 
     GLFWwindow* m_window {};
-    GLuint m_currentProgram {};
-    GLuint m_currentVAO {};
-    GLuint m_currentUBO {};
+
+    GLuint m_mainProgram {};
+    GLuint m_mainVAO {};
+    GLuint m_mainUBO {};
+
+    GLuint m_debugProgram {};
+    GLuint m_debugVAO {};
+    GLuint m_debugUBO {};
+
+    struct DebugVertex {
+        float x, y, z;
+    };
+
+    struct {
+        std::vector<DebugVertex> m_debugLines {};
+
+        void PushDebugLine(glm::vec3 a, glm::vec3 b)
+        {
+            m_debugLines.emplace_back(DebugVertex {.x = a.x, .y = a.y, .z = a.z});
+            m_debugLines.emplace_back(DebugVertex {.x = b.x, .y = b.y, .z = b.z});
+        }
+
+        void Clear() { m_debugLines.clear(); }
+    } m_debugData;
 
     uint32_t m_windowWidth {1366};
     uint32_t m_windowHeight {768};
@@ -869,7 +957,9 @@ private:
 
     std::vector<Mesh> m_meshes {};
 
-    bool m_frustumCulling = true;
+    bool m_frustumCulling {true};
+    bool m_debugLines {true};
+    bool m_drawAABBs {false};
 };
 
 int main()
