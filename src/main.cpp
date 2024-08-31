@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <array>
+#include <expected>
 #include <optional>
 #include <print>
 #include <vector>
@@ -115,6 +116,47 @@ struct MeshVertex {
     float u, v;
     float nx, ny, nz;
 };
+
+[[nodiscard]] std::optional<GLuint> CreateShader(GLenum type, const char* src)
+{
+    if (type != GL_VERTEX_SHADER && type != GL_FRAGMENT_SHADER) {
+        return std::nullopt;
+    }
+
+    GLint res = GL_FALSE;
+    GLuint shader = glCreateShader(type);
+    glObjectLabel(GL_SHADER, shader, -1, type == GL_VERTEX_SHADER ? "Vertex Shader" : "Fragment Shader");
+    glShaderSource(shader, 1, &src, nullptr);
+    glCompileShader(shader);
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &res);
+
+    if (res != GL_TRUE) {
+        {
+            GLchar error[512];
+            GLsizei errorLen = 0;
+            glGetShaderInfoLog(shader, 512, &errorLen, error);
+            spdlog::error("[{}] {}", type == GL_VERTEX_SHADER ? "vertex" : "fragment", error);
+        }
+        glDeleteShader(shader);
+        return std::nullopt;
+    }
+
+    return shader;
+}
+
+[[nodiscard]] std::optional<GLuint> CreateShaderFromPath(GLenum type, const char* path)
+{
+    if (type != GL_VERTEX_SHADER && type != GL_FRAGMENT_SHADER) {
+        return std::nullopt;
+    }
+
+    std::optional<std::string> src = Glitter::Util::ReadFile(path);
+    if (!src) {
+        return std::nullopt;
+    }
+
+    return CreateShader(type, src.value().c_str());
+}
 
 class GlitterApplication {
 public:
@@ -290,34 +332,14 @@ private:
         };
 
         // Vertex Shader.
-        std::optional<std::string> vertexSrc = Glitter::Util::ReadFile("shaders/VertexShader.glsl");
-        if (!vertexSrc) {
-            return PrepareResult::ShaderLoadError;
-        }
-        const char* vertexSrcRaw = vertexSrc.value().c_str();
-        GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-        glObjectLabel(GL_SHADER, vertexShader, -1, "Vertex Shader");
-        glShaderSource(vertexShader, 1, &vertexSrcRaw, nullptr);
-        glCompileShader(vertexShader);
-        glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &shadersOk);
-        if (!shadersOk) {
-            printErrorMsg(vertexShader, "vertex");
+        GLuint vertexShader = CreateShaderFromPath(GL_VERTEX_SHADER, "shaders/VertexShader.glsl").value_or(0);
+        if (!vertexShader) {
             return PrepareResult::ShaderCompileError;
         }
 
         // Fragment Shader.
-        std::optional<std::string> fragmentSrc = Glitter::Util::ReadFile("shaders/FragShader.glsl");
-        if (!fragmentSrc) {
-            return PrepareResult::ShaderLoadError;
-        }
-        const char* fragmentSrcRaw = fragmentSrc.value().c_str();
-        GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-        glObjectLabel(GL_SHADER, fragmentShader, -1, "Fragment Shader");
-        glShaderSource(fragmentShader, 1, &fragmentSrcRaw, nullptr);
-        glCompileShader(fragmentShader);
-        glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &shadersOk);
-        if (!shadersOk) {
-            printErrorMsg(fragmentShader, "fragment");
+        GLuint fragmentShader = CreateShaderFromPath(GL_FRAGMENT_SHADER, "shaders/FragShader.glsl").value_or(0);
+        if (!fragmentShader) {
             return PrepareResult::ShaderCompileError;
         }
 
