@@ -116,6 +116,15 @@ list(APPEND GLITTER_IGNORE_WARNINGS_INCLUDES
     vendor/stb
 )
 
+list(APPEND GLITTER_PRECOMPILED_HEADERS
+    # spdlog
+    "$<$<COMPILE_LANGUAGE:CXX>:spdlog/spdlog.h>"
+
+    # glm
+    "$<$<COMPILE_LANGUAGE:CXX>:glm/glm.hpp>"
+    "$<$<COMPILE_LANGUAGE:CXX>:glm/ext.hpp>"
+)
+
 add_executable(Glitter)
 target_sources(Glitter PRIVATE
     ${GLITTER_SOURCES}
@@ -125,6 +134,9 @@ target_include_directories(Glitter PRIVATE
 )
 target_include_directories(Glitter SYSTEM PRIVATE
     ${GLITTER_IGNORE_WARNINGS_INCLUDES}
+)
+target_precompile_headers(Glitter PRIVATE
+    ${GLITTER_PRECOMPILED_HEADERS}
 )
 target_link_libraries(Glitter glfw spdlog glm)
 target_compile_features(Glitter PRIVATE cxx_std_23)
