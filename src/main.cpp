@@ -347,8 +347,9 @@ private:
         glDeleteShader(fragmentShader);
 
         // Check if the Program was linked successfully.
-        glGetProgramiv(shaderProgram, GL_LINK_STATUS, &shadersOk);
-        if (!shadersOk) {
+        GLint linkOk = GL_FALSE;
+        glGetProgramiv(shaderProgram, GL_LINK_STATUS, &linkOk);
+        if (linkOk == GL_FALSE) {
             return PrepareResult::ProgramLinkError;
         }
         m_currentProgram = shaderProgram;
