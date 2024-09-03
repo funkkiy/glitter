@@ -349,6 +349,9 @@ private:
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+        glEnable(GL_LINE_SMOOTH);
+        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+
         // Create the Debug shaders and program..
         GLuint debugVS = CreateShaderFromPath(GL_VERTEX_SHADER, "shaders/debug/DebugVS.glsl").value_or(0);
         GLuint debugFS = CreateShaderFromPath(GL_FRAGMENT_SHADER, "shaders/debug/DebugFS.glsl").value_or(0);
