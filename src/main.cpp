@@ -868,7 +868,7 @@ private:
 
         ImGui::Begin("Glitter Framebuffers");
         if (ImGui::CollapsingHeader("Main FB", ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Image(reinterpret_cast<void*>(m_fboColor), ImVec2(256, 256), ImVec2(0, 1), ImVec2(1, 0));
+            ImGui::Image(reinterpret_cast<void*>(m_fboColor), ImGui::GetWindowSize(), ImVec2(0, 1), ImVec2(1, 0));
         }
         ImGui::End();
 
