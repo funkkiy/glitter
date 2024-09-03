@@ -844,6 +844,8 @@ private:
         if (m_debugLines && m_debugData.m_debugLines.size()) {
             glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 2, -1, "Debug");
             {
+                glDepthFunc(GL_ALWAYS);
+
                 // Bind the Program and VAO.
                 glUseProgram(m_debugProgram);
                 glBindVertexArray(m_debugVAO);
@@ -863,6 +865,8 @@ private:
 
                 // Draw the Primitive!
                 glDrawArrays(GL_LINES, 0, m_debugData.m_debugLines.size());
+
+                glDepthFunc(GL_LEQUAL);
             }
             glPopDebugGroup();
         }
