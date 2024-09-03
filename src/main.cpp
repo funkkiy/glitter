@@ -251,6 +251,33 @@ private:
             app->m_windowWidth = width;
             app->m_windowHeight = height;
             glViewport(0, 0, width, height);
+
+            // Create new color and depth attachments for the FBO.
+            GLuint oldColor = app->m_fboColor;
+            GLuint oldDepth = app->m_fboDepth;
+
+            // Create the color texture used with the FBO.
+            GLuint fboColor;
+            glCreateTextures(GL_TEXTURE_2D, 1, &fboColor);
+            glTextureStorage2D(fboColor, 1, GL_RGBA8, width, height);
+            glObjectLabel(GL_TEXTURE, fboColor, -1, "Post-Processing FBO Color Texture");
+
+            // Create the depth renderbuffer (note: can't be sampled) used with the FBO.
+            GLuint fboDepth;
+            glCreateRenderbuffers(1, &fboDepth);
+            glNamedRenderbufferStorage(fboDepth, GL_DEPTH_COMPONENT24, width, height);
+            glObjectLabel(GL_RENDERBUFFER, fboDepth, -1, "Post-Processing FBO Depth Renderbuffer");
+
+            // Attach the textures to the FBO.
+            glNamedFramebufferTexture(app->m_fbo, GL_COLOR_ATTACHMENT0, fboColor, 0);
+            glNamedFramebufferRenderbuffer(app->m_fbo, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, fboDepth);
+
+            app->m_fboColor = fboColor;
+            app->m_fboDepth = fboDepth;
+
+            // Delete the old FBO attachments.
+            glDeleteTextures(1, &oldColor);
+            glDeleteRenderbuffers(1, &oldDepth);
         });
 
         glfwSetKeyCallback(m_window, [](GLFWwindow* window, int key, int /*scancode*/, int action, int /*mods*/) {
@@ -314,6 +341,7 @@ private:
         Ok,
         ShaderCompileError,
         ProgramLinkError,
+        FramebufferIncomplete,
     };
 
     PrepareResult Prepare()
@@ -352,7 +380,7 @@ private:
         glEnable(GL_LINE_SMOOTH);
         glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 
-        // Create the Debug shaders and program..
+        // Create the Debug shaders and program.
         GLuint debugVS = CreateShaderFromPath(GL_VERTEX_SHADER, "shaders/debug/DebugVS.glsl").value_or(0);
         GLuint debugFS = CreateShaderFromPath(GL_FRAGMENT_SHADER, "shaders/debug/DebugFS.glsl").value_or(0);
         if (!debugVS || !debugFS) {
@@ -368,16 +396,16 @@ private:
 
         {
             // Create Debug VAO.
-            GLuint VAO;
-            glCreateVertexArrays(1, &VAO);
-            glObjectLabel(GL_VERTEX_ARRAY, VAO, -1, "Debug VAO");
+            GLuint vao;
+            glCreateVertexArrays(1, &vao);
+            glObjectLabel(GL_VERTEX_ARRAY, vao, -1, "Debug VAO");
 
             // Declare the Position Attribute.
-            glEnableVertexArrayAttrib(VAO, 0);
-            glVertexArrayAttribFormat(VAO, 0, 3, GL_FLOAT, GL_FALSE, offsetof(DebugVertex, x));
-            glVertexArrayAttribBinding(VAO, 0, 0);
+            glEnableVertexArrayAttrib(vao, 0);
+            glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offsetof(DebugVertex, x));
+            glVertexArrayAttribBinding(vao, 0, 0);
 
-            m_debugVAO = VAO;
+            m_debugVAO = vao;
         }
 
         // Create the Main shaders and program.
@@ -393,6 +421,52 @@ private:
         }
 
         m_mainProgram = mainProgram;
+
+        // Create the Post-Processing shaders and program.
+        GLuint ppfxVS = CreateShaderFromPath(GL_VERTEX_SHADER, "shaders/ppfx/PpfxVS.glsl").value_or(0);
+        GLuint ppfxFS = CreateShaderFromPath(GL_FRAGMENT_SHADER, "shaders/ppfx/PpfxFS.glsl").value_or(0);
+        if (!ppfxVS || !ppfxFS) {
+            return PrepareResult::ShaderCompileError;
+        }
+
+        GLuint ppfxProgram = LinkProgram(ppfxVS, ppfxFS, "Post-Processing Program").value_or(0);
+        if (!ppfxProgram) {
+            return PrepareResult::ProgramLinkError;
+        }
+
+        m_ppfxProgram = ppfxProgram;
+
+        {
+            // Create Post-Processing VAO
+            GLuint vao;
+            glCreateVertexArrays(1, &vao);
+            glObjectLabel(GL_VERTEX_ARRAY, vao, -1, "Post-Processing VAO");
+
+            // Declare the Position attribute
+            glEnableVertexArrayAttrib(vao, 0);
+            glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offsetof(DebugVertex, x));
+            glVertexArrayAttribBinding(vao, 0, 0);
+
+            // Declare the UV Attribute.
+            glEnableVertexArrayAttrib(vao, 1);
+            glVertexArrayAttribFormat(vao, 1, 2, GL_FLOAT, GL_FALSE, offsetof(MeshVertex, u));
+            glVertexArrayAttribBinding(vao, 1, 0);
+
+            m_ppfxVAO = vao;
+
+            // Create Post-Processing VBO
+            GLuint vbo;
+            glCreateBuffers(1, &vbo);
+
+            PpfxVertex ppfxQuad[] = {{.x = -1.0f, .y = -1.0f, .u = 0.0f, .v = 0.0f}, {.x = 1.0f, .y = -1.0f, .u = 1.0f, .v = 0.0f},
+                {.x = -1.0f, .y = 1.0f, .u = 0.0f, .v = 1.0f}, {.x = 1.0f, .y = 1.0f, .u = 1.0f, .v = 1.0f}};
+
+            glNamedBufferStorage(vbo, sizeof(PpfxVertex) * std::size(ppfxQuad), ppfxQuad, 0);
+            glObjectLabel(GL_BUFFER, vbo, -1, "Post-Processing VBO");
+
+            // Attach the VBO to the VAO.
+            glVertexArrayVertexBuffer(vao, 0, vbo, 0, sizeof(PpfxVertex));
+        }
 
         // glTF mesh!
         std::array meshPaths(std::to_array<const char*>({"meshes/teapot.glb"}));
@@ -498,20 +572,20 @@ private:
                         .m_elementCount = narrow_into<GLsizei>(primitives.m_vertexIndices.size())};
 
                     // Create VBO.
-                    GLuint VBO;
-                    glCreateBuffers(1, &VBO);
-                    glNamedBufferStorage(VBO, sizeof(MeshVertex) * parsedMeshes[0].m_primitives[0].m_vertexData.size(),
+                    GLuint vbo;
+                    glCreateBuffers(1, &vbo);
+                    glNamedBufferStorage(vbo, sizeof(MeshVertex) * parsedMeshes[0].m_primitives[0].m_vertexData.size(),
                         parsedMeshes[0].m_primitives[0].m_vertexData.data(), 0);
-                    glObjectLabel(GL_BUFFER, VBO, -1, "VBO");
-                    primitive.m_vbo = VBO;
+                    glObjectLabel(GL_BUFFER, vbo, -1, "VBO");
+                    primitive.m_vbo = vbo;
 
                     // Create EBO.
-                    GLuint EBO;
-                    glCreateBuffers(1, &EBO);
-                    glNamedBufferStorage(EBO, sizeof(uint32_t) * parsedMeshes[0].m_primitives[0].m_vertexIndices.size(),
+                    GLuint ebo;
+                    glCreateBuffers(1, &ebo);
+                    glNamedBufferStorage(ebo, sizeof(uint32_t) * parsedMeshes[0].m_primitives[0].m_vertexIndices.size(),
                         parsedMeshes[0].m_primitives[0].m_vertexIndices.data(), 0);
-                    glObjectLabel(GL_BUFFER, EBO, -1, "EBO");
-                    primitive.m_ebo = EBO;
+                    glObjectLabel(GL_BUFFER, ebo, -1, "EBO");
+                    primitive.m_ebo = ebo;
 
                     // Add primitive to the Mesh.
                     glitterMesh.m_primitives.emplace_back(primitive);
@@ -524,26 +598,26 @@ private:
         }
 
         // Create VAO.
-        GLuint VAO;
-        glCreateVertexArrays(1, &VAO);
-        glObjectLabel(GL_VERTEX_ARRAY, VAO, -1, "VAO");
+        GLuint vao;
+        glCreateVertexArrays(1, &vao);
+        glObjectLabel(GL_VERTEX_ARRAY, vao, -1, "Main VAO");
 
         // Declare the Position Attribute.
-        glEnableVertexArrayAttrib(VAO, 0);
-        glVertexArrayAttribFormat(VAO, 0, 3, GL_FLOAT, GL_FALSE, offsetof(MeshVertex, x));
-        glVertexArrayAttribBinding(VAO, 0, 0);
+        glEnableVertexArrayAttrib(vao, 0);
+        glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offsetof(MeshVertex, x));
+        glVertexArrayAttribBinding(vao, 0, 0);
 
         // Declare the UV Attribute.
-        glEnableVertexArrayAttrib(VAO, 1);
-        glVertexArrayAttribFormat(VAO, 1, 2, GL_FLOAT, GL_FALSE, offsetof(MeshVertex, u));
-        glVertexArrayAttribBinding(VAO, 1, 0);
+        glEnableVertexArrayAttrib(vao, 1);
+        glVertexArrayAttribFormat(vao, 1, 2, GL_FLOAT, GL_FALSE, offsetof(MeshVertex, u));
+        glVertexArrayAttribBinding(vao, 1, 0);
 
         // Declare the Normal attribute
-        glEnableVertexArrayAttrib(VAO, 2);
-        glVertexArrayAttribFormat(VAO, 2, 3, GL_FLOAT, GL_FALSE, offsetof(MeshVertex, nx));
-        glVertexArrayAttribBinding(VAO, 2, 0);
+        glEnableVertexArrayAttrib(vao, 2);
+        glVertexArrayAttribFormat(vao, 2, 3, GL_FLOAT, GL_FALSE, offsetof(MeshVertex, nx));
+        glVertexArrayAttribBinding(vao, 2, 0);
 
-        m_mainVAO = VAO;
+        m_mainVAO = vao;
 
         // Create empty UBO buffer.
         GLuint ubo {};
@@ -577,6 +651,34 @@ private:
             stbi_image_free(textureData);
             m_loadedTextures.push_back(texture);
         }
+
+        // Create FBO to be used for post-processing effects.
+        GLuint fbo;
+        glCreateFramebuffers(1, &fbo);
+
+        // Create the color texture used with the FBO.
+        GLuint fboColor;
+        glCreateTextures(GL_TEXTURE_2D, 1, &fboColor);
+        glTextureStorage2D(fboColor, 1, GL_RGBA8, m_windowWidth, m_windowHeight);
+        glObjectLabel(GL_TEXTURE, fboColor, -1, "Post-Processing FBO Color Texture");
+
+        // Create the depth renderbuffer (note: can't be sampled) used with the FBO.
+        GLuint fboDepth;
+        glCreateRenderbuffers(1, &fboDepth);
+        glNamedRenderbufferStorage(fboDepth, GL_DEPTH_COMPONENT24, m_windowWidth, m_windowHeight);
+        glObjectLabel(GL_RENDERBUFFER, fboDepth, -1, "Post-Processing FBO Depth Renderbuffer");
+
+        // Attach the textures to the FBO.
+        glNamedFramebufferTexture(fbo, GL_COLOR_ATTACHMENT0, fboColor, 0);
+        glNamedFramebufferRenderbuffer(fbo, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, fboDepth);
+
+        if (glCheckNamedFramebufferStatus(fbo, GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            return PrepareResult::FramebufferIncomplete;
+        }
+
+        m_fbo = fbo;
+        m_fboColor = fboColor;
+        m_fboDepth = fboDepth;
 
         return PrepareResult::Ok;
     }
@@ -760,6 +862,14 @@ private:
             ImGui::SameLine();
             ImGui::Checkbox("Draw AABBs", &m_drawAABBs);
         }
+        ImGui::SeparatorText("Scene Properties");
+        ImGui::SliderFloat("Scene Gamma", &m_sceneGamma, 0.0f, 5.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::End();
+
+        ImGui::Begin("Glitter Framebuffers");
+        if (ImGui::CollapsingHeader("Main FB", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Image(reinterpret_cast<void*>(m_fboColor), ImVec2(256, 256), ImVec2(0, 1), ImVec2(1, 0));
+        }
         ImGui::End();
 
         // Upload the CPU-backing buffer into the UBO.
@@ -823,25 +933,50 @@ private:
             }
         };
 
-        // Render each opaque Node.
-        if (!opaqueNodes.empty()) {
-            glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Opaque Nodes");
-            {
-                glDepthMask(GL_TRUE);
-                renderNodes(opaqueNodes);
-            }
-            glPopDebugGroup();
-        }
+        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Main FB Draw");
+        {
+            glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
+            // The FBO needs its own independent clear.
+            glDepthMask(GL_TRUE);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Render each transparent Node.
-        if (!transparentNodes.empty()) {
-            glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 1, -1, "Transparent Nodes");
-            {
-                glDepthMask(GL_FALSE);
-                renderNodes(transparentNodes);
+            // Render each opaque Node.
+            if (!opaqueNodes.empty()) {
+                glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 1, -1, "Opaque Nodes");
+                {
+                    glDepthMask(GL_TRUE);
+                    renderNodes(opaqueNodes);
+                }
+                glPopDebugGroup();
             }
-            glPopDebugGroup();
+
+            // Render each transparent Node.
+            if (!transparentNodes.empty()) {
+                glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 2, -1, "Transparent Nodes");
+                {
+                    glDepthMask(GL_FALSE);
+                    renderNodes(transparentNodes);
+                }
+                glPopDebugGroup();
+            }
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
+        glPopDebugGroup();
+
+        // Render Post-Processing effects.
+        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Post-Processing");
+        {
+            glUseProgram(m_ppfxProgram);
+            glBindVertexArray(m_ppfxVAO);
+
+            // uniform layout(location = 0) sampler2D u_ColorTexture;
+            // uniform layout(location = 1) float u_Gamma;
+            glBindTextureUnit(0, m_fboColor);
+            glUniform1f(1, m_sceneGamma);
+
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        }
+        glPopDebugGroup();
 
         // Render Debug.
         if (m_debugLines && m_debugData.m_debugLines.size()) {
@@ -854,14 +989,14 @@ private:
                 glBindVertexArray(m_debugVAO);
 
                 // Create VBO.
-                GLuint VBO;
-                glCreateBuffers(1, &VBO);
+                GLuint vbo;
+                glCreateBuffers(1, &vbo);
                 glNamedBufferStorage(
-                    VBO, sizeof(DebugVertex) * m_debugData.m_debugLines.size(), m_debugData.m_debugLines.data(), 0);
-                glObjectLabel(GL_BUFFER, VBO, -1, "Debug VBO");
+                    vbo, sizeof(DebugVertex) * m_debugData.m_debugLines.size(), m_debugData.m_debugLines.data(), 0);
+                glObjectLabel(GL_BUFFER, vbo, -1, "Debug VBO");
 
                 // Attach the VBO to the VAO.
-                glVertexArrayVertexBuffer(m_debugVAO, 0, VBO, 0, sizeof(DebugVertex));
+                glVertexArrayVertexBuffer(m_debugVAO, 0, vbo, 0, sizeof(DebugVertex));
 
                 // Bind the Common UBO data into the first slot of the UBO.
                 glBindBufferRange(GL_UNIFORM_BUFFER, 0, m_mainUBO, 0, sizeof(CommonData));
@@ -907,6 +1042,18 @@ private:
     GLuint m_debugProgram {};
     GLuint m_debugVAO {};
     GLuint m_debugUBO {};
+
+    struct PpfxVertex {
+        float x, y, z;
+        float u, v;
+    };
+
+    GLuint m_ppfxProgram {};
+    GLuint m_ppfxVAO {};
+
+    GLuint m_fbo {};
+    GLuint m_fboColor {};
+    GLuint m_fboDepth {};
 
     struct DebugVertex {
         float x, y, z;
@@ -967,6 +1114,8 @@ private:
     bool m_frustumCulling {true};
     bool m_debugLines {true};
     bool m_drawAABBs {false};
+
+    float m_sceneGamma {1.0f};
 };
 
 int main()
