@@ -1,3 +1,4 @@
+#include "glitter/Config.h"
 #include "glitter/util/File.h"
 
 #define GLFW_INCLUDE_NONE
@@ -285,12 +286,17 @@ private:
             switch (key) {
             case GLFW_KEY_SPACE:
                 if (action == GLFW_RELEASE) {
-                    // We only accept up to 9999 nodes.
-                    if (app->m_nodes.size() >= 9999) {
+                    size_t nodesPerPress = Glitter::Config::MAX_NODES / 20;
+
+                    // We only accept up to Glitter::Config::MAX_NODES nodes, because UBO reallocation hasn't been implemented yet.
+                    if (app->m_nodes.size() >= Glitter::Config::MAX_NODES) {
                         break;
                     }
+                    if (app->m_nodes.size() + nodesPerPress > Glitter::Config::MAX_NODES) {
+                        nodesPerPress = Glitter::Config::MAX_NODES - app->m_nodes.size();
+                    }
 
-                    for (int i = 0; i < 500; i++) {
+                    for (int i = 0; i < nodesPerPress; i++) {
                         app->m_nodes.push_back(Node {.m_position = glm::sphericalRand(45.0f),
                             .m_texture = app->m_loadedTextures[std::rand() % app->m_loadedTextures.size()],
                             .m_meshID = std::rand() % app->m_meshes.size(),
@@ -624,9 +630,10 @@ private:
         glCreateBuffers(1, &ubo);
         glObjectLabel(GL_BUFFER, ubo, -1, "UBO");
 
-        // Just enough for the Common stuff and 9999 Nodes.
-        glNamedBufferData(
-            ubo, sizeof(CommonData) + ((sizeof(PerDrawData) + m_uboAllocator.GetAlignment()) * 9999), nullptr, GL_DYNAMIC_DRAW);
+        // Just enough for the Common stuff and the Nodes.
+        glNamedBufferData(ubo,
+            sizeof(CommonData) + ((sizeof(PerDrawData) + m_uboAllocator.GetAlignment()) * Glitter::Config::MAX_NODES), nullptr,
+            GL_DYNAMIC_DRAW);
         m_mainUBO = ubo;
 
         // Load some Node textures.

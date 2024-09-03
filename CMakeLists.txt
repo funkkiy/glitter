@@ -72,6 +72,7 @@ set_target_properties(glm PROPERTIES FOLDER "Dependencies")
 list(APPEND GLITTER_SOURCES
     # glitter
     src/main.cpp
+    src/glitter/Config.h
 
     # glitter utility
     src/glitter/util/File.cpp
