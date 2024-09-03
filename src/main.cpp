@@ -933,7 +933,7 @@ private:
 
         ImGui::Begin("Glitter Framebuffers");
         if (ImGui::CollapsingHeader("Main FB", ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Image(reinterpret_cast<void*>(m_fboColor), ImGui::GetWindowSize(), ImVec2(0, 1), ImVec2(1, 0));
+            ImGui::Image(reinterpret_cast<void*>(static_cast<uintptr_t>(m_fboColor)), ImGui::GetWindowSize(), ImVec2(0, 1), ImVec2(1, 0));
         }
         ImGui::End();
 
@@ -1067,7 +1067,7 @@ private:
                 glBindBufferRange(GL_UNIFORM_BUFFER, 0, m_mainUBO, 0, sizeof(CommonData));
 
                 // Draw the Primitive!
-                glDrawArrays(GL_LINES, 0, m_debugData.m_debugLines.size());
+                glDrawArrays(GL_LINES, 0, narrow_into<GLsizei>(m_debugData.m_debugLines.size()));
 
                 glDepthFunc(GL_LEQUAL);
             }
