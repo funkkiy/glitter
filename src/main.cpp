@@ -296,7 +296,7 @@ private:
                         nodesPerPress = Glitter::Config::MAX_NODES - app->m_nodes.size();
                     }
 
-                    for (int i = 0; i < nodesPerPress; i++) {
+                    for (size_t i = 0; i < nodesPerPress; i++) {
                         app->m_nodes.push_back(Node {.m_position = glm::sphericalRand(45.0f),
                             .m_texture = app->m_loadedTextures[std::rand() % app->m_loadedTextures.size()],
                             .m_meshID = std::rand() % app->m_meshes.size(),
@@ -522,8 +522,9 @@ private:
             GLuint vbo;
             glCreateBuffers(1, &vbo);
 
-            PpfxVertex ppfxQuad[] = {{.x = -1.0f, .y = -1.0f, .u = 0.0f, .v = 0.0f}, {.x = 1.0f, .y = -1.0f, .u = 1.0f, .v = 0.0f},
-                {.x = -1.0f, .y = 1.0f, .u = 0.0f, .v = 1.0f}, {.x = 1.0f, .y = 1.0f, .u = 1.0f, .v = 1.0f}};
+            PpfxVertex ppfxQuad[] = {{.x = -1.0f, .y = -1.0f, .z = 0.0f, .u = 0.0f, .v = 0.0f},
+                {.x = 1.0f, .y = -1.0f, .z = 0.0f, .u = 1.0f, .v = 0.0f}, {.x = -1.0f, .y = 1.0f, .z = 0.0f, .u = 0.0f, .v = 1.0f},
+                {.x = 1.0f, .y = 1.0f, .z = 0.0f, .u = 1.0f, .v = 1.0f}};
 
             glNamedBufferStorage(vbo, sizeof(PpfxVertex) * std::size(ppfxQuad), ppfxQuad, 0);
             glObjectLabel(GL_BUFFER, vbo, -1, "Post-Processing VBO");
@@ -618,7 +619,8 @@ private:
                         }
 
                         for (cgltf_size indexIdx = 0; indexIdx < prim.indices->count; indexIdx++) {
-                            gltfPrim.m_vertexIndices.emplace_back(cgltf_accessor_read_index(prim.indices, indexIdx));
+                            gltfPrim.m_vertexIndices.emplace_back(
+                                narrow_into<GLuint>(cgltf_accessor_read_index(prim.indices, indexIdx)));
                         }
 
                         gltfMesh.m_primitives.emplace_back(gltfPrim);
@@ -916,7 +918,7 @@ private:
         ImGui::Begin("Glitter Debug");
         if (ImGui::CollapsingHeader("Performance", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Checkbox("Frustum Culling", &m_frustumCulling);
-            ImGui::Text("Culled Nodes: %d/%d (%.2f%%)", numCulledNodes, m_nodes.size(),
+            ImGui::Text("Culled Nodes: %d/%zu (%.2f%%)", numCulledNodes, m_nodes.size(),
                 m_nodes.size() != 0 ? static_cast<float>(numCulledNodes) / m_nodes.size() * 100.0f : 0.0f);
             if (ImGui::Button("Clear Nodes", ImVec2(-1.0f, 0.0f))) {
                 m_nodes.clear();
@@ -933,7 +935,8 @@ private:
 
         ImGui::Begin("Glitter Framebuffers");
         if (ImGui::CollapsingHeader("Main FB", ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Image(reinterpret_cast<void*>(static_cast<uintptr_t>(m_fboColor)), ImGui::GetWindowSize(), ImVec2(0, 1), ImVec2(1, 0));
+            ImGui::Image(
+                reinterpret_cast<void*>(static_cast<uintptr_t>(m_fboColor)), ImGui::GetWindowSize(), ImVec2(0, 1), ImVec2(1, 0));
         }
         ImGui::End();
 
@@ -1106,7 +1109,6 @@ private:
 
     GLuint m_debugProgram {};
     GLuint m_debugVAO {};
-    GLuint m_debugUBO {};
 
     struct PpfxVertex {
         float x, y, z;

@@ -9,7 +9,7 @@ string(CONCAT WALL_OTHERS "$<"
             "$<CXX_COMPILER_ID:MSVC>"
         ">"
     ">:"
-    "SHELL:-Wall -Wextra -Wdouble-promotion -Wshadow"
+    "SHELL:-Wall -Wextra -Wshadow"
 ">")
 
 string(CONCAT WALL_MSVC "$<"
@@ -17,7 +17,7 @@ string(CONCAT WALL_MSVC "$<"
         "$<COMPILE_LANGUAGE:CXX,C>,"
         "$<CXX_COMPILER_ID:MSVC>"
     ">:"
-    "SHELL:/W4 /wd4201"
+    "SHELL:/W4 /wd4201 /D_CRT_SECURE_NO_WARNINGS /D_CRT_SECURE_NO_DEPRECATE"
 ">")
 
 # multi-cpu build
@@ -77,12 +77,11 @@ list(APPEND GLITTER_SOURCES
     # glitter utility
     src/glitter/util/File.cpp
     src/glitter/util/File.h
+)
 
+list(APPEND GLITTER_VENDOR_SOURCES
     # glad
     vendor/glad/src/glad.c
-
-    # stb
-    vendor/stb/stb_image.cpp
 
     # cgltf
     vendor/cgltf/cgltf.cpp
@@ -95,12 +94,17 @@ list(APPEND GLITTER_SOURCES
     vendor/imgui/imgui_widgets.cpp
     vendor/imgui/backends/imgui_impl_glfw.cpp
     vendor/imgui/backends/imgui_impl_opengl3.cpp
+
+    # stb
+    vendor/stb/stb_image.cpp
 )
 
 list(APPEND GLITTER_INCLUDES
     # glitter
     src/glitter
+)
 
+list(APPEND GLITTER_VENDOR_INCLUDES
     # glad
     vendor/glad/include
 
@@ -110,9 +114,7 @@ list(APPEND GLITTER_INCLUDES
     # imgui
     vendor/imgui
     vendor/imgui/backends
-)
 
-list(APPEND GLITTER_IGNORE_WARNINGS_INCLUDES
     # stb
     vendor/stb
 )
@@ -126,22 +128,29 @@ list(APPEND GLITTER_PRECOMPILED_HEADERS
     "$<$<COMPILE_LANGUAGE:CXX>:glm/ext.hpp>"
 )
 
+set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-use-color")
+
+# Add vendor sources without clang-tidy
+set_source_files_properties(${GLITTER_VENDOR_SOURCES} PROPERTIES
+    SKIP_LINTING ON
+)
+
 add_executable(Glitter)
-target_sources(Glitter PRIVATE
-    ${GLITTER_SOURCES}
+target_sources(Glitter PUBLIC
+    ${GLITTER_SOURCES} PRIVATE ${GLITTER_VENDOR_SOURCES}
 )
 target_include_directories(Glitter PRIVATE
     ${GLITTER_INCLUDES}
 )
 target_include_directories(Glitter SYSTEM PRIVATE
-    ${GLITTER_IGNORE_WARNINGS_INCLUDES}
+    ${GLITTER_VENDOR_INCLUDES}
 )
 target_precompile_headers(Glitter PRIVATE
     ${GLITTER_PRECOMPILED_HEADERS}
 )
 target_link_libraries(Glitter glfw spdlog glm)
 target_compile_features(Glitter PRIVATE cxx_std_23)
-target_compile_options(Glitter PRIVATE
+target_compile_options(Glitter PUBLIC
     ${WALL_OTHERS} ${WALL_MSVC}
 )
 target_compile_definitions(Glitter PUBLIC SPDLOG_COMPILED_LIB)
