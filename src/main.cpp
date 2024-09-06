@@ -1,4 +1,5 @@
 #include "glitter/Config.h"
+#include "glitter/ImGuiConfig.h"
 #include "glitter/util/File.h"
 
 #define GLFW_INCLUDE_NONE
@@ -44,7 +45,7 @@ template <typename Into, typename From> constexpr Into narrow_into(From x)
 
 class LinearAllocator {
 public:
-    LinearAllocator() {};
+    LinearAllocator() = default;
 
     // Returns the offset after the object in the buffer.
     template <typename T> size_t Push(T& t)
@@ -52,23 +53,22 @@ public:
         InitializeAlignment();
 
         // Calculate total amount of bytes that will be pushed.
-        size_t futureSize = m_buffer.size() + sizeof(T);
-        size_t paddingRequired = futureSize % m_alignment == 0 ? 0 : m_alignment - (futureSize % m_alignment);
-        size_t bytesRequired = futureSize + paddingRequired;
-        m_buffer.reserve(m_buffer.size() + bytesRequired);
+        size_t sizeAfterT = m_buffer.size() + sizeof(T);
+        size_t paddingRequired = sizeAfterT % m_alignment == 0 ? 0 : m_alignment - (sizeAfterT % m_alignment);
 
         size_t offsetBeforePush = m_buffer.size();
+        m_buffer.resize(sizeAfterT + paddingRequired);
 
         // Push the object.
-        m_buffer.insert(m_buffer.end(), reinterpret_cast<uint8_t*>(&t), reinterpret_cast<uint8_t*>(&t) + sizeof(T));
+        std::memcpy(m_buffer.data() + offsetBeforePush, &t, sizeof(T));
 
         // Push the padding.
-        m_buffer.resize(m_buffer.size() + paddingRequired);
+        std::memset(m_buffer.data() + offsetBeforePush + sizeof(T), 0, paddingRequired);
 
         return offsetBeforePush;
     }
 
-    uint8_t* Data() { return m_buffer.data(); }
+    std::byte* Data() { return m_buffer.data(); }
     size_t Size() { return m_buffer.size(); }
     GLint GetAlignment()
     {
@@ -86,7 +86,7 @@ private:
         }
     }
 
-    std::vector<uint8_t> m_buffer {};
+    std::vector<std::byte> m_buffer;
 
     bool m_initializedAlignment {false};
     GLint m_alignment {};
@@ -134,10 +134,9 @@ struct MeshVertex {
 
     if (res != GL_TRUE) {
         {
-            GLchar error[512];
-            GLsizei errorLen = 0;
-            glGetShaderInfoLog(shader, 512, &errorLen, error);
-            spdlog::error("[{}] {}", type == GL_VERTEX_SHADER ? "vertex" : "fragment", error);
+            std::array<GLchar, 512> error {};
+            glGetShaderInfoLog(shader, 512, nullptr, error.data());
+            spdlog::error("[{}] {}", type == GL_VERTEX_SHADER ? "vertex" : "fragment", error.data());
         }
         glDeleteShader(shader);
         return std::nullopt;
@@ -176,10 +175,9 @@ struct MeshVertex {
     GLint res = GL_FALSE;
     glGetProgramiv(program, GL_LINK_STATUS, &res);
     if (res == GL_FALSE) {
-        GLchar error[512];
-        GLsizei errorLen = 0;
-        glGetProgramInfoLog(program, 512, &errorLen, error);
-        spdlog::error("[program] {}", error);
+        std::array<GLchar, 512> error {};
+        glGetProgramInfoLog(program, 512, nullptr, error.data());
+        spdlog::error("[program] {}", error.data());
 
         glDeleteProgram(program);
         return std::nullopt;
@@ -215,7 +213,7 @@ public:
     }
 
 private:
-    enum class [[nodiscard]] InitializeResult {
+    enum class [[nodiscard]] InitializeResult : std::uint8_t {
         Ok,
         GlfwInitError,
         GlfwWindowError,
@@ -243,7 +241,7 @@ private:
         // Resize the Viewport if the Window size changes.
         glfwSetWindowUserPointer(m_window, this);
         glfwSetWindowSizeCallback(m_window, [](GLFWwindow* window, int width, int height) {
-            auto app = static_cast<GlitterApplication*>(glfwGetWindowUserPointer(window));
+            auto* app = static_cast<GlitterApplication*>(glfwGetWindowUserPointer(window));
 
             if (width == 0 || height == 0) {
                 return;
@@ -258,13 +256,13 @@ private:
             GLuint oldDepth = app->m_fboDepth;
 
             // Create the color texture used with the FBO.
-            GLuint fboColor;
+            GLuint fboColor = 0;
             glCreateTextures(GL_TEXTURE_2D, 1, &fboColor);
             glTextureStorage2D(fboColor, 1, GL_RGBA8, width, height);
             glObjectLabel(GL_TEXTURE, fboColor, -1, "Post-Processing FBO Color Texture");
 
             // Create the depth renderbuffer (note: can't be sampled) used with the FBO.
-            GLuint fboDepth;
+            GLuint fboDepth = 0;
             glCreateRenderbuffers(1, &fboDepth);
             glNamedRenderbufferStorage(fboDepth, GL_DEPTH_COMPONENT24, width, height);
             glObjectLabel(GL_RENDERBUFFER, fboDepth, -1, "Post-Processing FBO Depth Renderbuffer");
@@ -282,7 +280,7 @@ private:
         });
 
         glfwSetKeyCallback(m_window, [](GLFWwindow* window, int key, int /*scancode*/, int action, int /*mods*/) {
-            auto app = static_cast<GlitterApplication*>(glfwGetWindowUserPointer(window));
+            auto* app = static_cast<GlitterApplication*>(glfwGetWindowUserPointer(window));
             switch (key) {
             case GLFW_KEY_SPACE:
                 if (action == GLFW_RELEASE) {
@@ -401,7 +399,7 @@ private:
         return InitializeResult::Ok;
     }
 
-    enum class [[nodiscard]] PrepareResult {
+    enum class [[nodiscard]] PrepareResult : std::uint8_t {
         Ok,
         ShaderCompileError,
         ProgramLinkError,
@@ -460,7 +458,7 @@ private:
 
         {
             // Create Debug VAO.
-            GLuint vao;
+            GLuint vao = 0;
             glCreateVertexArrays(1, &vao);
             glObjectLabel(GL_VERTEX_ARRAY, vao, -1, "Debug VAO");
 
@@ -502,7 +500,7 @@ private:
 
         {
             // Create Post-Processing VAO
-            GLuint vao;
+            GLuint vao = 0;
             glCreateVertexArrays(1, &vao);
             glObjectLabel(GL_VERTEX_ARRAY, vao, -1, "Post-Processing VAO");
 
@@ -519,14 +517,14 @@ private:
             m_ppfxVAO = vao;
 
             // Create Post-Processing VBO
-            GLuint vbo;
+            GLuint vbo = 0;
             glCreateBuffers(1, &vbo);
 
-            PpfxVertex ppfxQuad[] = {{.x = -1.0f, .y = -1.0f, .z = 0.0f, .u = 0.0f, .v = 0.0f},
+            std::array ppfxQuad = std::to_array<PpfxVertex>({{.x = -1.0f, .y = -1.0f, .z = 0.0f, .u = 0.0f, .v = 0.0f},
                 {.x = 1.0f, .y = -1.0f, .z = 0.0f, .u = 1.0f, .v = 0.0f}, {.x = -1.0f, .y = 1.0f, .z = 0.0f, .u = 0.0f, .v = 1.0f},
-                {.x = 1.0f, .y = 1.0f, .z = 0.0f, .u = 1.0f, .v = 1.0f}};
+                {.x = 1.0f, .y = 1.0f, .z = 0.0f, .u = 1.0f, .v = 1.0f}});
 
-            glNamedBufferStorage(vbo, sizeof(PpfxVertex) * std::size(ppfxQuad), ppfxQuad, 0);
+            glNamedBufferStorage(vbo, static_cast<GLsizeiptr>(sizeof(PpfxVertex) * std::size(ppfxQuad)), ppfxQuad.data(), 0);
             glObjectLabel(GL_BUFFER, vbo, -1, "Post-Processing VBO");
 
             // Attach the VBO to the VAO.
@@ -620,7 +618,7 @@ private:
 
                         for (cgltf_size indexIdx = 0; indexIdx < prim.indices->count; indexIdx++) {
                             gltfPrim.m_vertexIndices.emplace_back(
-                                narrow_into<GLuint>(cgltf_accessor_read_index(prim.indices, indexIdx)));
+                                static_cast<GLuint>(cgltf_accessor_read_index(prim.indices, indexIdx)));
                         }
 
                         gltfMesh.m_primitives.emplace_back(gltfPrim);
@@ -638,17 +636,19 @@ private:
                         .m_elementCount = narrow_into<GLsizei>(primitives.m_vertexIndices.size())};
 
                     // Create VBO.
-                    GLuint vbo;
+                    GLuint vbo = 0;
                     glCreateBuffers(1, &vbo);
-                    glNamedBufferStorage(vbo, sizeof(MeshVertex) * parsedMeshes[0].m_primitives[0].m_vertexData.size(),
+                    glNamedBufferStorage(vbo,
+                        static_cast<GLsizeiptr>(sizeof(MeshVertex) * parsedMeshes[0].m_primitives[0].m_vertexData.size()),
                         parsedMeshes[0].m_primitives[0].m_vertexData.data(), 0);
                     glObjectLabel(GL_BUFFER, vbo, -1, "VBO");
                     primitive.m_vbo = vbo;
 
                     // Create EBO.
-                    GLuint ebo;
+                    GLuint ebo = 0;
                     glCreateBuffers(1, &ebo);
-                    glNamedBufferStorage(ebo, sizeof(uint32_t) * parsedMeshes[0].m_primitives[0].m_vertexIndices.size(),
+                    glNamedBufferStorage(ebo,
+                        static_cast<GLsizeiptr>(sizeof(uint32_t) * parsedMeshes[0].m_primitives[0].m_vertexIndices.size()),
                         parsedMeshes[0].m_primitives[0].m_vertexIndices.data(), 0);
                     glObjectLabel(GL_BUFFER, ebo, -1, "EBO");
                     primitive.m_ebo = ebo;
@@ -664,7 +664,7 @@ private:
         }
 
         // Create VAO.
-        GLuint vao;
+        GLuint vao = 0;
         glCreateVertexArrays(1, &vao);
         glObjectLabel(GL_VERTEX_ARRAY, vao, -1, "Main VAO");
 
@@ -692,8 +692,9 @@ private:
 
         // Just enough for the Common stuff and the Nodes.
         glNamedBufferData(ubo,
-            sizeof(CommonData) + ((sizeof(PerDrawData) + m_uboAllocator.GetAlignment()) * Glitter::Config::MAX_NODES), nullptr,
-            GL_DYNAMIC_DRAW);
+            static_cast<GLsizeiptr>(
+                sizeof(CommonData) + ((sizeof(PerDrawData) + m_uboAllocator.GetAlignment())) * Glitter::Config::MAX_NODES),
+            nullptr, GL_DYNAMIC_DRAW);
         m_mainUBO = ubo;
 
         // Load some Node textures.
@@ -708,7 +709,7 @@ private:
             glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             glObjectLabel(GL_TEXTURE, texture, -1, std::format("Texture <{}>", path).c_str());
 
-            int width, height, nChannels;
+            int width = 0, height = 0, nChannels = 0;
             unsigned char* textureData = stbi_load(path, &width, &height, &nChannels, 4);
             if (textureData) {
                 glTextureStorage2D(texture, 1, GL_RGBA8, width, height);
@@ -720,17 +721,17 @@ private:
         }
 
         // Create FBO to be used for post-processing effects.
-        GLuint fbo;
+        GLuint fbo = 0;
         glCreateFramebuffers(1, &fbo);
 
         // Create the color texture used with the FBO.
-        GLuint fboColor;
+        GLuint fboColor = 0;
         glCreateTextures(GL_TEXTURE_2D, 1, &fboColor);
         glTextureStorage2D(fboColor, 1, GL_RGBA8, m_windowWidth, m_windowHeight);
         glObjectLabel(GL_TEXTURE, fboColor, -1, "Post-Processing FBO Color Texture");
 
         // Create the depth renderbuffer (note: can't be sampled) used with the FBO.
-        GLuint fboDepth;
+        GLuint fboDepth = 0;
         glCreateRenderbuffers(1, &fboDepth);
         glNamedRenderbufferStorage(fboDepth, GL_DEPTH_COMPONENT24, m_windowWidth, m_windowHeight);
         glObjectLabel(GL_RENDERBUFFER, fboDepth, -1, "Post-Processing FBO Depth Renderbuffer");
@@ -843,7 +844,7 @@ private:
                 };
 
                 // Obtain the AABB's scaled and translated transform.
-                glm::mat4 aabbTransform = glm::mat4(1.0f);
+                auto aabbTransform = glm::mat4(1.0f);
                 aabbTransform = glm::scale(aabbTransform, node.m_scale);
                 aabbTransform = glm::translate(aabbTransform, node.m_position);
 
@@ -896,21 +897,18 @@ private:
                     }
                 }
                 if (cullNode) {
-                    node.m_culled = true;
                     numCulledNodes += 1;
-                    continue;
-                } else {
-                    node.m_culled = false;
                 }
+                node.m_culled = cullNode;
             }
 
             // The Model has to follow the Scale-Rotate-Translate
             // order.
-            glm::mat4 model = glm::mat4(1.0f);
+            auto model = glm::mat4(1.0f);
             model = glm::scale(model, node.m_scale);
             model = glm::translate(model, node.m_position);
 
-            PerDrawData shaderData {.m_model = model, .m_opacity = node.m_opacity, .m_unused = {0}};
+            PerDrawData shaderData {.m_model = model, .m_opacity = node.m_opacity};
             node.m_uboOffset = m_uboAllocator.Push(shaderData);
         }
 
@@ -919,7 +917,7 @@ private:
         if (ImGui::CollapsingHeader("Performance", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Checkbox("Frustum Culling", &m_frustumCulling);
             ImGui::Text("Culled Nodes: %d/%zu (%.2f%%)", numCulledNodes, m_nodes.size(),
-                m_nodes.size() != 0 ? static_cast<float>(numCulledNodes) / m_nodes.size() * 100.0f : 0.0f);
+                !m_nodes.empty() ? static_cast<float>(numCulledNodes) / static_cast<float>(m_nodes.size()) * 100.0f : 0.0f);
             if (ImGui::Button("Clear Nodes", ImVec2(-1.0f, 0.0f))) {
                 m_nodes.clear();
             }
@@ -935,13 +933,12 @@ private:
 
         ImGui::Begin("Glitter Framebuffers");
         if (ImGui::CollapsingHeader("Main FB", ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Image(
-                reinterpret_cast<void*>(static_cast<uintptr_t>(m_fboColor)), ImGui::GetWindowSize(), ImVec2(0, 1), ImVec2(1, 0));
+            ImGui::Image(m_fboColor, ImGui::GetWindowSize(), ImVec2(0, 1), ImVec2(1, 0));
         }
         ImGui::End();
 
         // Upload the CPU-backing buffer into the UBO.
-        glNamedBufferSubData(m_mainUBO, 0, sizeof(uint8_t) * m_uboAllocator.Size(), m_uboAllocator.Data());
+        glNamedBufferSubData(m_mainUBO, 0, static_cast<GLsizeiptr>(sizeof(uint8_t) * m_uboAllocator.Size()), m_uboAllocator.Data());
 
         // Bind the Program and VAO.
         glUseProgram(m_mainProgram);
@@ -968,18 +965,20 @@ private:
         }
 
         // Sort each opaque Node from front-to-back.
-        std::sort(opaqueNodes.begin(), opaqueNodes.end(),
-            [&eyePos](Node& a, Node& b) { return glm::distance(eyePos, a.m_position) < glm::distance(eyePos, b.m_position); });
+        std::sort(opaqueNodes.begin(), opaqueNodes.end(), [&eyePos](const Node& a, const Node& b) {
+            return glm::distance(eyePos, a.m_position) < glm::distance(eyePos, b.m_position);
+        });
 
         // Sort each transparent Node from back-to-front.
-        std::sort(transparentNodes.begin(), transparentNodes.end(),
-            [&eyePos](Node& a, Node& b) { return glm::distance(eyePos, a.m_position) > glm::distance(eyePos, b.m_position); });
+        std::sort(transparentNodes.begin(), transparentNodes.end(), [&eyePos](const Node& a, const Node& b) {
+            return glm::distance(eyePos, a.m_position) > glm::distance(eyePos, b.m_position);
+        });
 
-        auto renderNodes = [this](std::vector<Node> nodes) {
-            for (Node& node : nodes) {
+        auto renderNodes = [this](const std::vector<Node>& nodes) {
+            for (Node node : nodes) {
                 size_t meshIdx = node.m_meshID;
 
-                for (auto& primitive : m_meshes[meshIdx].m_primitives) {
+                for (const auto& primitive : m_meshes[meshIdx].m_primitives) {
                     // Attach the VBO to the VAO.
                     glVertexArrayVertexBuffer(m_mainVAO, 0, primitive.m_vbo, 0, sizeof(MeshVertex));
 
@@ -990,13 +989,14 @@ private:
                     glBindBufferRange(GL_UNIFORM_BUFFER, 0, m_mainUBO, 0, sizeof(CommonData));
 
                     // Bind the Per-Draw UBO data into the second slot of the UBO.
-                    glBindBufferRange(GL_UNIFORM_BUFFER, 1, m_mainUBO, node.m_uboOffset, sizeof(PerDrawData));
+                    glBindBufferRange(
+                        GL_UNIFORM_BUFFER, 1, m_mainUBO, static_cast<GLintptr>(node.m_uboOffset), sizeof(PerDrawData));
 
                     // Bind the texture.
                     glBindTextureUnit(0, node.m_texture);
 
                     // Draw the Primitive!
-                    glDrawElements(GL_TRIANGLES, primitive.m_elementCount, GL_UNSIGNED_INT, 0);
+                    glDrawElements(GL_TRIANGLES, primitive.m_elementCount, GL_UNSIGNED_INT, nullptr);
                 }
             }
         };
@@ -1047,7 +1047,7 @@ private:
         glPopDebugGroup();
 
         // Render Debug.
-        if (m_debugLines && m_debugData.m_debugLines.size()) {
+        if (m_debugLines && !m_debugData.m_debugLines.empty()) {
             glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 2, -1, "Debug");
             {
                 glDepthFunc(GL_ALWAYS);
@@ -1057,10 +1057,10 @@ private:
                 glBindVertexArray(m_debugVAO);
 
                 // Create VBO.
-                GLuint vbo;
+                GLuint vbo = 0;
                 glCreateBuffers(1, &vbo);
-                glNamedBufferStorage(
-                    vbo, sizeof(DebugVertex) * m_debugData.m_debugLines.size(), m_debugData.m_debugLines.data(), 0);
+                glNamedBufferStorage(vbo, static_cast<GLsizeiptr>(sizeof(DebugVertex) * m_debugData.m_debugLines.size()),
+                    m_debugData.m_debugLines.data(), 0);
                 glObjectLabel(GL_BUFFER, vbo, -1, "Debug VBO");
 
                 // Attach the VBO to the VAO.
@@ -1070,7 +1070,7 @@ private:
                 glBindBufferRange(GL_UNIFORM_BUFFER, 0, m_mainUBO, 0, sizeof(CommonData));
 
                 // Draw the Primitive!
-                glDrawArrays(GL_LINES, 0, narrow_into<GLsizei>(m_debugData.m_debugLines.size()));
+                glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(m_debugData.m_debugLines.size()));
 
                 glDepthFunc(GL_LEQUAL);
             }
@@ -1091,6 +1091,23 @@ private:
     void Finish()
     {
         spdlog::info("Stopping...");
+
+        // Shutdown OpenGL.
+        glDeleteProgram(m_mainProgram);
+        glDeleteBuffers(1, &m_mainVAO);
+        glDeleteBuffers(1, &m_mainUBO);
+
+        glDeleteProgram(m_debugProgram);
+        glDeleteBuffers(1, &m_debugVAO);
+
+        glDeleteProgram(m_ppfxProgram);
+        glDeleteBuffers(1, &m_ppfxVAO);
+        
+        glDeleteFramebuffers(1, &m_fbo);
+        glDeleteTextures(1, &m_fboColor);
+        glDeleteRenderbuffers(1, &m_fboDepth);
+
+        glDeleteTextures(m_loadedTextures.size(), m_loadedTextures.data());
 
         // Shutdown Dear ImGui.
         ImGui_ImplOpenGL3_Shutdown();
@@ -1127,7 +1144,7 @@ private:
     };
 
     struct {
-        std::vector<DebugVertex> m_debugLines {};
+        std::vector<DebugVertex> m_debugLines;
 
         void PushDebugLine(glm::vec3 a, glm::vec3 b)
         {
@@ -1138,8 +1155,8 @@ private:
         void Clear() { m_debugLines.clear(); }
     } m_debugData;
 
-    uint32_t m_windowWidth {1366};
-    uint32_t m_windowHeight {768};
+    int m_windowWidth {1366};
+    int m_windowHeight {768};
 
     glm::mat4 m_currentView {};
     glm::mat4 m_currentProjection {};
@@ -1154,15 +1171,14 @@ private:
     struct PerDrawData {
         glm::mat4 m_model;
         float m_opacity;
-        float m_unused[3];
     };
     struct ShaderData {
         CommonData m_commonData;
         PerDrawData m_perDrawData;
     };
-    LinearAllocator m_uboAllocator {};
+    LinearAllocator m_uboAllocator;
 
-    std::vector<GLuint> m_loadedTextures {};
+    std::vector<GLuint> m_loadedTextures;
 
     struct Node {
         glm::vec3 m_position;
@@ -1174,9 +1190,9 @@ private:
         bool m_shouldAnimate;
         bool m_culled;
     };
-    std::vector<Node> m_nodes {};
+    std::vector<Node> m_nodes;
 
-    std::vector<Mesh> m_meshes {};
+    std::vector<Mesh> m_meshes;
 
     bool m_frustumCulling {true};
     bool m_debugLines {true};

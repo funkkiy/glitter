@@ -73,6 +73,7 @@ list(APPEND GLITTER_SOURCES
     # glitter
     src/main.cpp
     src/glitter/Config.h
+    src/glitter/ImGuiConfig.h
 
     # glitter utility
     src/glitter/util/File.cpp
@@ -153,7 +154,7 @@ target_compile_features(Glitter PRIVATE cxx_std_23)
 target_compile_options(Glitter PUBLIC
     ${WALL_OTHERS} ${WALL_MSVC}
 )
-target_compile_definitions(Glitter PUBLIC SPDLOG_COMPILED_LIB)
+target_compile_definitions(Glitter PUBLIC IMGUI_USER_CONFIG=<${CMAKE_SOURCE_DIR}/src/glitter/ImGuiConfig.h> SPDLOG_COMPILED_LIB)
 
 # msvc-specific Glitter settings
 if(MSVC)
