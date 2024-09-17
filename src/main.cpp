@@ -972,7 +972,7 @@ private:
         });
 
         auto renderNodes = [this](const std::vector<Node>& nodes) {
-            for (Node node : nodes) {
+            for (const Node& node : nodes) {
                 size_t meshIdx = node.m_meshID;
 
                 for (const auto& primitive : m_meshes[meshIdx].m_primitives) {
