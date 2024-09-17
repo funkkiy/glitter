@@ -296,11 +296,11 @@ private:
 
                     for (size_t i = 0; i < nodesPerPress; i++) {
                         app->m_nodes.push_back(Node {.m_position = glm::sphericalRand(45.0f),
-                            .m_texture = app->m_loadedTextures[std::rand() % app->m_loadedTextures.size()],
+                            .m_scale = glm::vec3(0.25f),
                             .m_meshID = std::rand() % app->m_meshes.size(),
                             .m_uboOffset = 0,
+                            .m_texture = app->m_loadedTextures[std::rand() % app->m_loadedTextures.size()],
                             .m_opacity = 1.0f,
-                            .m_scale = glm::vec3(0.25f),
                             .m_shouldAnimate = true,
                             .m_culled = false});
                     }
@@ -1182,11 +1182,14 @@ private:
 
     struct Node {
         glm::vec3 m_position;
-        GLuint m_texture;
+        glm::vec3 m_scale;
+
         size_t m_meshID;
         size_t m_uboOffset;
+
+        GLuint m_texture;
         float m_opacity;
-        glm::vec3 m_scale;
+
         bool m_shouldAnimate;
         bool m_culled;
     };
