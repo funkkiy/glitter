@@ -758,13 +758,10 @@ private:
         // Clear Debug data.
         m_debugData.Clear();
 
-        // Start Dear Imgui frame.
+        // Start Dear ImGui frame.
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-
-        // Add Dear ImGui Demo UI.
-        // ImGui::ShowDemoWindow();
 
         for (Node& node : m_nodes) {
             if (node.m_shouldAnimate) {
@@ -1092,6 +1089,11 @@ private:
     {
         spdlog::info("Stopping...");
 
+        // Shutdown Dear ImGui.
+        ImGui_ImplOpenGL3_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
+
         // Shutdown OpenGL.
         glDeleteProgram(m_mainProgram);
         glDeleteBuffers(1, &m_mainVAO);
@@ -1102,17 +1104,12 @@ private:
 
         glDeleteProgram(m_ppfxProgram);
         glDeleteBuffers(1, &m_ppfxVAO);
-        
+
         glDeleteFramebuffers(1, &m_fbo);
         glDeleteTextures(1, &m_fboColor);
         glDeleteRenderbuffers(1, &m_fboDepth);
 
         glDeleteTextures(m_loadedTextures.size(), m_loadedTextures.data());
-
-        // Shutdown Dear ImGui.
-        ImGui_ImplOpenGL3_Shutdown();
-        ImGui_ImplGlfw_Shutdown();
-        ImGui::DestroyContext();
 
         // Shutdown GLFW.
         glfwTerminate();
