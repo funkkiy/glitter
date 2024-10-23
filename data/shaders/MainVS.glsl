@@ -16,7 +16,7 @@ layout (std140, binding = 0) uniform CommonData
 layout (std140, binding = 1) uniform PerDrawData
 {
     mat4 u_Model;
-    float u_Opacity;
+    vec4 u_Opacity;
 };
 
 out vec2 v_TexCoord;

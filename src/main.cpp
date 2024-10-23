@@ -905,7 +905,7 @@ private:
             model = glm::scale(model, node.m_scale);
             model = glm::translate(model, node.m_position);
 
-            PerDrawData shaderData {.m_model = model, .m_opacity = node.m_opacity};
+            PerDrawData shaderData {.m_model = model, .m_opacity = glm::vec4(node.m_opacity)};
             node.m_uboOffset = m_uboAllocator.Push(shaderData);
         }
 
@@ -1167,7 +1167,7 @@ private:
     };
     struct PerDrawData {
         glm::mat4 m_model;
-        float m_opacity;
+        glm::vec4 m_opacity;
     };
     struct ShaderData {
         CommonData m_commonData;

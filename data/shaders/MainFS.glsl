@@ -16,7 +16,7 @@ layout (std140, binding = 0) uniform CommonData
 layout (std140, binding = 1) uniform PerDrawData
 {
     mat4 u_Model;
-    float u_Opacity;
+    vec4 u_Opacity;
 };
 
 uniform sampler2D u_Texture;
@@ -47,5 +47,5 @@ void main()
 
     // Result
     vec3 CombinedLight = Ambient + Diffuse + Specular;
-    FragColor = texture(u_Texture, v_TexCoord) * vec4(CombinedLight, u_Opacity);
+    FragColor = texture(u_Texture, v_TexCoord) * vec4(CombinedLight, u_Opacity.x);
 }
