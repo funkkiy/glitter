@@ -1145,8 +1145,8 @@ private:
 
         void PushDebugLine(glm::vec3 a, glm::vec3 b)
         {
-            m_debugLines.emplace_back(DebugVertex {.x = a.x, .y = a.y, .z = a.z});
-            m_debugLines.emplace_back(DebugVertex {.x = b.x, .y = b.y, .z = b.z});
+            m_debugLines.emplace_back(a.x, a.y, a.z);
+            m_debugLines.emplace_back(b.x, b.y, b.z);
         }
 
         void Clear() { m_debugLines.clear(); }
