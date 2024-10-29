@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <vector>
+#include <optional>
 
 namespace Glitter::Gfx {
 
@@ -18,7 +19,7 @@ public:
 
         // Calculate total amount of bytes that will be pushed.
         size_t sizeAfterT = m_buffer.size() + sizeof(T);
-        size_t paddingRequired = sizeAfterT % m_alignment == 0 ? 0 : m_alignment - (sizeAfterT % m_alignment);
+        size_t paddingRequired = sizeAfterT % *m_alignment == 0 ? 0 : *m_alignment - (sizeAfterT % *m_alignment);
 
         size_t offsetBeforePush = m_buffer.size();
         m_buffer.resize(sizeAfterT + paddingRequired);
@@ -34,26 +35,25 @@ public:
 
     std::byte* Data() { return m_buffer.data(); }
     size_t Size() { return m_buffer.size(); }
-    size_t GetAlignment()
+    GLint GetAlignment()
     {
         InitializeAlignment();
-        return m_alignment;
+        return *m_alignment;
     }
     void Clear() { m_buffer.clear(); }
 
 private:
     void InitializeAlignment()
     {
-        if (!m_initializedAlignment) {
-            glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, reinterpret_cast<GLint*>(&m_alignment));
-            m_initializedAlignment = true;
+        if (!m_alignment) {
+            GLint alignment {0};
+            glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &alignment);
+            m_alignment = alignment;
         }
     }
 
     std::vector<std::byte> m_buffer;
-
-    bool m_initializedAlignment {false};
-    size_t m_alignment {};
+    std::optional<GLint> m_alignment;
 };
 
 } // namespace Glitter::Gfx
