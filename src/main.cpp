@@ -44,6 +44,7 @@ template <typename Into, typename From> constexpr Into narrow_into(From x)
     return static_cast<Into>(x);
 }
 
+namespace Glitter {
 
 struct Primitive {
     GLuint m_vbo;
@@ -139,7 +140,7 @@ struct MeshVertex {
     return program;
 }
 
-class GlitterApplication {
+class Application {
 public:
     void Run()
     {
@@ -194,7 +195,7 @@ private:
         // Resize the Viewport if the Window size changes.
         glfwSetWindowUserPointer(m_window, this);
         glfwSetWindowSizeCallback(m_window, [](GLFWwindow* window, int width, int height) {
-            auto* app = static_cast<GlitterApplication*>(glfwGetWindowUserPointer(window));
+            auto* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
 
             if (width == 0 || height == 0) {
                 return;
@@ -233,7 +234,7 @@ private:
         });
 
         glfwSetKeyCallback(m_window, [](GLFWwindow* window, int key, int /*scancode*/, int action, int /*mods*/) {
-            auto* app = static_cast<GlitterApplication*>(glfwGetWindowUserPointer(window));
+            auto* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
             switch (key) {
             case GLFW_KEY_SPACE:
                 if (action == GLFW_RELEASE) {
@@ -1154,9 +1155,11 @@ private:
     float m_sceneGamma {1.0f};
 };
 
+} // namespace Glitter
+
 int main()
 {
-    GlitterApplication glitterApp;
+    Glitter::Application glitterApp;
     glitterApp.Run();
     return 0;
 }
