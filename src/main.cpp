@@ -227,9 +227,9 @@ private:
 
             app->m_windowWidth = width;
             app->m_windowHeight = height;
-            glViewport(0, 0, width, height);
 
             app->UpdateFramebuffer(width, height);
+            glViewport(0, 0, width, height);
         });
 
         glfwSetKeyCallback(m_window, [](GLFWwindow* window, int key, int /*scancode*/, int action, int /*mods*/) {
