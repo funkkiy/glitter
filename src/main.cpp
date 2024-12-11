@@ -151,14 +151,8 @@ public:
     }
 
 private:
-    enum class [[nodiscard]] InitializeResult : std::uint8_t {
-        Ok,
-        GlfwInitError,
-        GlfwWindowError,
-        GladLoadError,
-    };
-
-    void CreateFramebuffer(GLsizei width, GLsizei height) {
+    void CreateFramebuffer(GLsizei width, GLsizei height)
+    {
         // Create new FBO.
         if (!m_fbo) {
             GLuint fbo = 0;
@@ -186,7 +180,8 @@ private:
         m_fboDepth = fboDepth;
     }
 
-    void UpdateFramebuffer(GLsizei width, GLsizei height) {
+    void UpdateFramebuffer(GLsizei width, GLsizei height)
+    {
         GLuint oldColor = m_fboColor;
         GLuint oldDepth = m_fboDepth;
 
@@ -195,6 +190,13 @@ private:
         glDeleteTextures(1, &oldColor);
         glDeleteRenderbuffers(1, &oldDepth);
     }
+
+    enum class [[nodiscard]] InitializeResult : std::uint8_t {
+        Ok,
+        GlfwInitError,
+        GlfwWindowError,
+        GladLoadError,
+    };
 
     InitializeResult Initialize()
     {
