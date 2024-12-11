@@ -1,13 +1,16 @@
 #version 460 core
 
-layout (location = 0) in vec3 a_Position;
-layout (location = 1) in vec2 a_TexCoord;
-
 out vec2 v_TexCoord;
 
 void main()
 {
-    gl_Position = vec4(a_Position, 1.0);
+    vec2 PpfxTriangle[3] = {
+        vec2(-1.0, -1.0),
+        vec2(3.0, -1.0),
+        vec2(-1.0, 3.0)
+    };
 
-    v_TexCoord = a_TexCoord;
+    vec2 Position = PpfxTriangle[gl_VertexID];
+    gl_Position = vec4(Position, 0.0, 1.0);
+    v_TexCoord = (Position * 0.5) + 0.5;
 }

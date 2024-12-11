@@ -406,7 +406,6 @@ private:
         if (!debugProgram) {
             return PrepareResult::ProgramLinkError;
         }
-
         m_debugProgram = debugProgram;
 
         m_debugVAO = Glitter::Gfx::CreateVAO("Debug VAO",
@@ -425,7 +424,6 @@ private:
         if (!mainProgram) {
             return PrepareResult::ProgramLinkError;
         }
-
         m_mainProgram = mainProgram;
 
         {
@@ -460,33 +458,7 @@ private:
         if (!ppfxProgram) {
             return PrepareResult::ProgramLinkError;
         }
-
         m_ppfxProgram = ppfxProgram;
-
-        {
-            m_ppfxVAO = Glitter::Gfx::CreateVAO("Post-Processing VAO",
-                {
-                    {.m_size = 3, .m_type = GL_FLOAT, .m_offset = offsetof(PpfxVertex, x)},
-                    {.m_size = 2, .m_type = GL_FLOAT, .m_offset = offsetof(PpfxVertex, u)},
-            });
-
-            // Create Post-Processing VBO
-            GLuint vbo = 0;
-            glCreateBuffers(1, &vbo);
-
-            std::array ppfxQuad = std::to_array<PpfxVertex>({
-                {.x = -1.0f, .y = -1.0f, .z = 0.0f, .u = 0.0f, .v = 0.0f},
-                {.x = 1.0f,  .y = -1.0f, .z = 0.0f, .u = 1.0f, .v = 0.0f},
-                {.x = -1.0f, .y = 1.0f,  .z = 0.0f, .u = 0.0f, .v = 1.0f},
-                {.x = 1.0f,  .y = 1.0f,  .z = 0.0f, .u = 1.0f, .v = 1.0f}
-            });
-
-            glNamedBufferStorage(vbo, static_cast<GLsizeiptr>(sizeof(PpfxVertex) * std::size(ppfxQuad)), ppfxQuad.data(), 0);
-            glObjectLabel(GL_BUFFER, vbo, -1, "Post-Processing VBO");
-
-            // Attach the VBO to the VAO.
-            glVertexArrayVertexBuffer(m_ppfxVAO, 0, vbo, 0, sizeof(PpfxVertex));
-        }
 
         // glTF mesh!
         std::array meshPaths(std::to_array<const char*>({"meshes/teapot.glb"}));
@@ -936,14 +908,13 @@ private:
         glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Post-Processing");
         {
             glUseProgram(m_ppfxProgram);
-            glBindVertexArray(m_ppfxVAO);
 
             // uniform layout(location = 0) sampler2D u_ColorTexture;
             // uniform layout(location = 1) float u_Gamma;
             glBindTextureUnit(0, m_fboColor);
             glUniform1f(1, m_sceneGamma);
 
-            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            glDrawArrays(GL_TRIANGLES, 0, 3);
         }
         glPopDebugGroup();
 
@@ -1007,7 +978,6 @@ private:
         glDeleteBuffers(1, &m_debugVAO);
 
         glDeleteProgram(m_ppfxProgram);
-        glDeleteBuffers(1, &m_ppfxVAO);
 
         glDeleteFramebuffers(1, &(*m_fbo));
         glDeleteTextures(1, &m_fboColor);
@@ -1028,13 +998,7 @@ private:
     GLuint m_debugProgram {};
     GLuint m_debugVAO {};
 
-    struct PpfxVertex {
-        float x, y, z;
-        float u, v;
-    };
-
     GLuint m_ppfxProgram {};
-    GLuint m_ppfxVAO {};
 
     std::optional<GLuint> m_fbo {};
     GLuint m_fboColor {};
