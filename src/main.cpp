@@ -158,6 +158,44 @@ private:
         GladLoadError,
     };
 
+    void CreateFramebuffer(GLsizei width, GLsizei height) {
+        // Create new FBO.
+        if (!m_fbo) {
+            GLuint fbo = 0;
+            glCreateFramebuffers(1, &fbo);
+            m_fbo = fbo;
+        }
+
+        // Create the color texture used with the FBO.
+        GLuint fboColor = 0;
+        glCreateTextures(GL_TEXTURE_2D, 1, &fboColor);
+        glTextureStorage2D(fboColor, 1, GL_RGBA8, width, height);
+        glObjectLabel(GL_TEXTURE, fboColor, -1, "Post-Processing FBO Color Texture");
+
+        // Create the depth renderbuffer (note: can't be sampled) used with the FBO.
+        GLuint fboDepth = 0;
+        glCreateRenderbuffers(1, &fboDepth);
+        glNamedRenderbufferStorage(fboDepth, GL_DEPTH_COMPONENT24, width, height);
+        glObjectLabel(GL_RENDERBUFFER, fboDepth, -1, "Post-Processing FBO Depth Renderbuffer");
+
+        // Attach the textures to the FBO.
+        glNamedFramebufferTexture(*m_fbo, GL_COLOR_ATTACHMENT0, fboColor, 0);
+        glNamedFramebufferRenderbuffer(*m_fbo, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, fboDepth);
+
+        m_fboColor = fboColor;
+        m_fboDepth = fboDepth;
+    }
+
+    void UpdateFramebuffer(GLsizei width, GLsizei height) {
+        GLuint oldColor = m_fboColor;
+        GLuint oldDepth = m_fboDepth;
+
+        CreateFramebuffer(width, height);
+
+        glDeleteTextures(1, &oldColor);
+        glDeleteRenderbuffers(1, &oldDepth);
+    }
+
     InitializeResult Initialize()
     {
         if (!glfwInit()) {
@@ -189,32 +227,7 @@ private:
             app->m_windowHeight = height;
             glViewport(0, 0, width, height);
 
-            // Create new color and depth attachments for the FBO.
-            GLuint oldColor = app->m_fboColor;
-            GLuint oldDepth = app->m_fboDepth;
-
-            // Create the color texture used with the FBO.
-            GLuint fboColor = 0;
-            glCreateTextures(GL_TEXTURE_2D, 1, &fboColor);
-            glTextureStorage2D(fboColor, 1, GL_RGBA8, width, height);
-            glObjectLabel(GL_TEXTURE, fboColor, -1, "Post-Processing FBO Color Texture");
-
-            // Create the depth renderbuffer (note: can't be sampled) used with the FBO.
-            GLuint fboDepth = 0;
-            glCreateRenderbuffers(1, &fboDepth);
-            glNamedRenderbufferStorage(fboDepth, GL_DEPTH_COMPONENT24, width, height);
-            glObjectLabel(GL_RENDERBUFFER, fboDepth, -1, "Post-Processing FBO Depth Renderbuffer");
-
-            // Attach the textures to the FBO.
-            glNamedFramebufferTexture(app->m_fbo, GL_COLOR_ATTACHMENT0, fboColor, 0);
-            glNamedFramebufferRenderbuffer(app->m_fbo, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, fboDepth);
-
-            app->m_fboColor = fboColor;
-            app->m_fboDepth = fboDepth;
-
-            // Delete the old FBO attachments.
-            glDeleteTextures(1, &oldColor);
-            glDeleteRenderbuffers(1, &oldDepth);
+            app->UpdateFramebuffer(width, height);
         });
 
         glfwSetKeyCallback(m_window, [](GLFWwindow* window, int key, int /*scancode*/, int action, int /*mods*/) {
@@ -628,33 +641,7 @@ private:
             m_loadedTextures.push_back(texture);
         }
 
-        // Create FBO to be used for post-processing effects.
-        GLuint fbo = 0;
-        glCreateFramebuffers(1, &fbo);
-
-        // Create the color texture used with the FBO.
-        GLuint fboColor = 0;
-        glCreateTextures(GL_TEXTURE_2D, 1, &fboColor);
-        glTextureStorage2D(fboColor, 1, GL_RGBA8, m_windowWidth, m_windowHeight);
-        glObjectLabel(GL_TEXTURE, fboColor, -1, "Post-Processing FBO Color Texture");
-
-        // Create the depth renderbuffer (note: can't be sampled) used with the FBO.
-        GLuint fboDepth = 0;
-        glCreateRenderbuffers(1, &fboDepth);
-        glNamedRenderbufferStorage(fboDepth, GL_DEPTH_COMPONENT24, m_windowWidth, m_windowHeight);
-        glObjectLabel(GL_RENDERBUFFER, fboDepth, -1, "Post-Processing FBO Depth Renderbuffer");
-
-        // Attach the textures to the FBO.
-        glNamedFramebufferTexture(fbo, GL_COLOR_ATTACHMENT0, fboColor, 0);
-        glNamedFramebufferRenderbuffer(fbo, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, fboDepth);
-
-        if (glCheckNamedFramebufferStatus(fbo, GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-            return PrepareResult::FramebufferIncomplete;
-        }
-
-        m_fbo = fbo;
-        m_fboColor = fboColor;
-        m_fboDepth = fboDepth;
+        CreateFramebuffer(m_windowWidth, m_windowHeight);
 
         return PrepareResult::Ok;
     }
@@ -915,7 +902,7 @@ private:
 
         glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Main FB Draw");
         {
-            glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
+            glBindFramebuffer(GL_FRAMEBUFFER, *m_fbo);
             // The FBO needs its own independent clear.
             glDepthMask(GL_TRUE);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1020,7 +1007,7 @@ private:
         glDeleteProgram(m_ppfxProgram);
         glDeleteBuffers(1, &m_ppfxVAO);
 
-        glDeleteFramebuffers(1, &m_fbo);
+        glDeleteFramebuffers(1, &(*m_fbo));
         glDeleteTextures(1, &m_fboColor);
         glDeleteRenderbuffers(1, &m_fboDepth);
 
@@ -1047,7 +1034,7 @@ private:
     GLuint m_ppfxProgram {};
     GLuint m_ppfxVAO {};
 
-    GLuint m_fbo {};
+    std::optional<GLuint> m_fbo {};
     GLuint m_fboColor {};
     GLuint m_fboDepth {};
 
