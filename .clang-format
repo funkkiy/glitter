@@ -6,5 +6,6 @@ Standard                                  : Auto
 AlignTrailingComments                     : true
 ColumnLimit                               : 132
 Cpp11BracedListStyle                      : true
+AlignArrayOfStructures                    : Left
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-

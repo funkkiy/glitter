@@ -1,8 +1,9 @@
 #include "glitter/Config.h"
 #include "glitter/ImGuiConfig.h"
-#include "glitter/util/File.h"
-#include "glitter/util/Common.h"
 #include "glitter/gfx/LinearAllocator.h"
+#include "glitter/gfx/VAO.h"
+#include "glitter/util/Common.h"
+#include "glitter/util/File.h"
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -393,19 +394,10 @@ private:
 
         m_debugProgram = debugProgram;
 
-        {
-            // Create Debug VAO.
-            GLuint vao = 0;
-            glCreateVertexArrays(1, &vao);
-            glObjectLabel(GL_VERTEX_ARRAY, vao, -1, "Debug VAO");
-
-            // Declare the Position Attribute.
-            glEnableVertexArrayAttrib(vao, 0);
-            glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offsetof(DebugVertex, x));
-            glVertexArrayAttribBinding(vao, 0, 0);
-
-            m_debugVAO = vao;
-        }
+        m_debugVAO = Glitter::Gfx::CreateVAO("Debug VAO",
+            {
+                {.m_size = 3, .m_type = GL_FLOAT, .m_offset = offsetof(DebugVertex, x)},
+        });
 
         // Create the Main shaders and program.
         GLuint mainVS = CreateShaderFromPath(GL_VERTEX_SHADER, "shaders/MainVS.glsl").value_or(0);
@@ -420,6 +412,27 @@ private:
         }
 
         m_mainProgram = mainProgram;
+
+        {
+            m_mainVAO = Glitter::Gfx::CreateVAO("Main VAO",
+                {
+                    {.m_size = 3, .m_type = GL_FLOAT, .m_offset = offsetof(MeshVertex, x) },
+                    {.m_size = 2, .m_type = GL_FLOAT, .m_offset = offsetof(MeshVertex, u) },
+                    {.m_size = 3, .m_type = GL_FLOAT, .m_offset = offsetof(MeshVertex, nx)}
+            });
+
+            // Create empty UBO buffer.
+            GLuint ubo {};
+            glCreateBuffers(1, &ubo);
+            glObjectLabel(GL_BUFFER, ubo, -1, "UBO");
+
+            // Just enough for the Common stuff and the Nodes.
+            glNamedBufferData(ubo,
+                static_cast<GLsizeiptr>(
+                    sizeof(CommonData) + ((sizeof(PerDrawData) + m_uboAllocator.GetAlignment())) * Glitter::Config::MAX_NODES),
+                nullptr, GL_DYNAMIC_DRAW);
+            m_mainUBO = ubo;
+        }
 
         // Create the Post-Processing shaders and program.
         GLuint ppfxVS = CreateShaderFromPath(GL_VERTEX_SHADER, "shaders/ppfx/PpfxVS.glsl").value_or(0);
@@ -436,36 +449,28 @@ private:
         m_ppfxProgram = ppfxProgram;
 
         {
-            // Create Post-Processing VAO
-            GLuint vao = 0;
-            glCreateVertexArrays(1, &vao);
-            glObjectLabel(GL_VERTEX_ARRAY, vao, -1, "Post-Processing VAO");
-
-            // Declare the Position attribute
-            glEnableVertexArrayAttrib(vao, 0);
-            glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offsetof(DebugVertex, x));
-            glVertexArrayAttribBinding(vao, 0, 0);
-
-            // Declare the UV Attribute.
-            glEnableVertexArrayAttrib(vao, 1);
-            glVertexArrayAttribFormat(vao, 1, 2, GL_FLOAT, GL_FALSE, offsetof(MeshVertex, u));
-            glVertexArrayAttribBinding(vao, 1, 0);
-
-            m_ppfxVAO = vao;
+            m_ppfxVAO = Glitter::Gfx::CreateVAO("Post-Processing VAO",
+                {
+                    {.m_size = 3, .m_type = GL_FLOAT, .m_offset = offsetof(PpfxVertex, x)},
+                    {.m_size = 2, .m_type = GL_FLOAT, .m_offset = offsetof(PpfxVertex, u)},
+            });
 
             // Create Post-Processing VBO
             GLuint vbo = 0;
             glCreateBuffers(1, &vbo);
 
-            std::array ppfxQuad = std::to_array<PpfxVertex>({{.x = -1.0f, .y = -1.0f, .z = 0.0f, .u = 0.0f, .v = 0.0f},
-                {.x = 1.0f, .y = -1.0f, .z = 0.0f, .u = 1.0f, .v = 0.0f}, {.x = -1.0f, .y = 1.0f, .z = 0.0f, .u = 0.0f, .v = 1.0f},
-                {.x = 1.0f, .y = 1.0f, .z = 0.0f, .u = 1.0f, .v = 1.0f}});
+            std::array ppfxQuad = std::to_array<PpfxVertex>({
+                {.x = -1.0f, .y = -1.0f, .z = 0.0f, .u = 0.0f, .v = 0.0f},
+                {.x = 1.0f,  .y = -1.0f, .z = 0.0f, .u = 1.0f, .v = 0.0f},
+                {.x = -1.0f, .y = 1.0f,  .z = 0.0f, .u = 0.0f, .v = 1.0f},
+                {.x = 1.0f,  .y = 1.0f,  .z = 0.0f, .u = 1.0f, .v = 1.0f}
+            });
 
             glNamedBufferStorage(vbo, static_cast<GLsizeiptr>(sizeof(PpfxVertex) * std::size(ppfxQuad)), ppfxQuad.data(), 0);
             glObjectLabel(GL_BUFFER, vbo, -1, "Post-Processing VBO");
 
             // Attach the VBO to the VAO.
-            glVertexArrayVertexBuffer(vao, 0, vbo, 0, sizeof(PpfxVertex));
+            glVertexArrayVertexBuffer(m_ppfxVAO, 0, vbo, 0, sizeof(PpfxVertex));
         }
 
         // glTF mesh!
@@ -599,40 +604,6 @@ private:
                 m_meshes.emplace_back(glitterMesh);
             }
         }
-
-        // Create VAO.
-        GLuint vao = 0;
-        glCreateVertexArrays(1, &vao);
-        glObjectLabel(GL_VERTEX_ARRAY, vao, -1, "Main VAO");
-
-        // Declare the Position Attribute.
-        glEnableVertexArrayAttrib(vao, 0);
-        glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offsetof(MeshVertex, x));
-        glVertexArrayAttribBinding(vao, 0, 0);
-
-        // Declare the UV Attribute.
-        glEnableVertexArrayAttrib(vao, 1);
-        glVertexArrayAttribFormat(vao, 1, 2, GL_FLOAT, GL_FALSE, offsetof(MeshVertex, u));
-        glVertexArrayAttribBinding(vao, 1, 0);
-
-        // Declare the Normal attribute
-        glEnableVertexArrayAttrib(vao, 2);
-        glVertexArrayAttribFormat(vao, 2, 3, GL_FLOAT, GL_FALSE, offsetof(MeshVertex, nx));
-        glVertexArrayAttribBinding(vao, 2, 0);
-
-        m_mainVAO = vao;
-
-        // Create empty UBO buffer.
-        GLuint ubo {};
-        glCreateBuffers(1, &ubo);
-        glObjectLabel(GL_BUFFER, ubo, -1, "UBO");
-
-        // Just enough for the Common stuff and the Nodes.
-        glNamedBufferData(ubo,
-            static_cast<GLsizeiptr>(
-                sizeof(CommonData) + ((sizeof(PerDrawData) + m_uboAllocator.GetAlignment())) * Glitter::Config::MAX_NODES),
-            nullptr, GL_DYNAMIC_DRAW);
-        m_mainUBO = ubo;
 
         // Load some Node textures.
         std::array texturePaths(std::to_array<const char*>({"textures/Tile.png", "textures/Cobble.png"}));
@@ -785,13 +756,20 @@ private:
                 AABB aabb = m_meshes[node.m_meshID].m_aabb;
                 std::array aabbCorners = std::to_array({
                     /* 0 */ glm::vec3 {aabb.m_localMin},
-                    /* 1 */ glm::vec3 {aabb.m_localMax.x, aabb.m_localMin.y, aabb.m_localMin.z},
-                    /* 2 */ glm::vec3 {aabb.m_localMin.x, aabb.m_localMax.y, aabb.m_localMin.z},
-                    /* 3 */ glm::vec3 {aabb.m_localMin.x, aabb.m_localMin.y, aabb.m_localMax.z},
-                    /* 4 */ glm::vec3 {aabb.m_localMax.x, aabb.m_localMin.y, aabb.m_localMax.z},
-                    /* 5 */ glm::vec3 {aabb.m_localMax.x, aabb.m_localMax.y, aabb.m_localMin.z},
-                    /* 6 */ glm::vec3 {aabb.m_localMin.x, aabb.m_localMax.y, aabb.m_localMax.z},
-                    /* 7 */ glm::vec3 {aabb.m_localMax},
+                    /* 1 */
+                    glm::vec3 {aabb.m_localMax.x, aabb.m_localMin.y, aabb.m_localMin.z},
+                    /* 2 */
+                    glm::vec3 {aabb.m_localMin.x, aabb.m_localMax.y, aabb.m_localMin.z},
+                    /* 3 */
+                    glm::vec3 {aabb.m_localMin.x, aabb.m_localMin.y, aabb.m_localMax.z},
+                    /* 4 */
+                    glm::vec3 {aabb.m_localMax.x, aabb.m_localMin.y, aabb.m_localMax.z},
+                    /* 5 */
+                    glm::vec3 {aabb.m_localMax.x, aabb.m_localMax.y, aabb.m_localMin.z},
+                    /* 6 */
+                    glm::vec3 {aabb.m_localMin.x, aabb.m_localMax.y, aabb.m_localMax.z},
+                    /* 7 */
+                    glm::vec3 {aabb.m_localMax},
                 });
 
                 // Transform the corners in `aabbCorners` into world space.
