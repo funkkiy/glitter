@@ -1046,7 +1046,7 @@ private:
         glDeleteTextures(1, &m_fboColor);
         glDeleteRenderbuffers(1, &m_fboDepth);
 
-        glDeleteTextures(m_loadedTextures.size(), m_loadedTextures.data());
+        glDeleteTextures(narrow_into<GLsizei>(m_loadedTextures.size()), m_loadedTextures.data());
 
         // Shutdown GLFW.
         glfwTerminate();
