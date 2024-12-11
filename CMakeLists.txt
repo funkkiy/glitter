@@ -78,6 +78,8 @@ list(APPEND GLITTER_SOURCES
     # glitter utility
     src/glitter/util/File.cpp
     src/glitter/util/File.h
+    src/glitter/util/Common.cpp
+    src/glitter/util/Common.h
 
     # glitter gfx
     src/glitter/gfx/LinearAllocator.cpp
