@@ -43,14 +43,7 @@ public:
     void Clear() { m_buffer.clear(); }
 
 private:
-    void InitializeAlignment()
-    {
-        if (!m_alignment) {
-            GLint alignment {0};
-            glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &alignment);
-            m_alignment = alignment;
-        }
-    }
+    void InitializeAlignment();
 
     std::vector<std::byte> m_buffer;
     std::optional<GLint> m_alignment;
