@@ -592,6 +592,48 @@ private:
             }
         }
 
+        // Create ground plane.
+        {
+            std::array planeVerts(std::to_array<MeshVertex>({
+                {.x = 0.0f, .y = 0.0f, .z = 0.0f, .u = 0.0f, .v = 0.0f, .nx = 0.0f, .ny = 1.0f, .nz = 0.0f},
+                {.x = 0.0f, .y = 0.0f, .z = 1.0f, .u = 0.0f, .v = 1.0f, .nx = 0.0f, .ny = 1.0f, .nz = 0.0f},
+                {.x = 1.0f, .y = 0.0f, .z = 1.0f, .u = 1.0f, .v = 1.0f, .nx = 0.0f, .ny = 1.0f, .nz = 0.0f},
+                {.x = 1.0f, .y = 0.0f, .z = 0.0f, .u = 1.0f, .v = 0.0f, .nx = 0.0f, .ny = 1.0f, .nz = 0.0f},
+            }));
+            std::array planeIndices(std::to_array<uint32_t>({0, 1, 2, 2, 3, 0}));
+
+            // Create VBO.
+            GLuint vbo = 0;
+            glCreateBuffers(1, &vbo);
+            glNamedBufferStorage(vbo, static_cast<GLsizeiptr>(sizeof(MeshVertex) * planeVerts.size()), planeVerts.data(), 0);
+            glObjectLabel(GL_BUFFER, vbo, -1, "VBO");
+
+            // Create EBO.
+            GLuint ebo = 0;
+            glCreateBuffers(1, &ebo);
+            glNamedBufferStorage(ebo, static_cast<GLsizeiptr>(sizeof(uint32_t) * planeIndices.size()), planeIndices.data(), 0);
+            glObjectLabel(GL_BUFFER, ebo, -1, "EBO");
+
+            Primitive prim {.m_vbo = vbo, .m_ebo = ebo, .m_baseTexture = 0, .m_elementCount = planeIndices.size()};
+
+            Mesh mesh {
+                .m_primitives = {prim},
+                  .m_aabb = {glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 1.0f)}
+            };
+
+            Node node {.m_position = glm::vec3(-2.5f, -1.0f, 2.5f),
+                .m_scale = glm::vec3(5.0f),
+                .m_meshID = m_meshes.size(),
+                .m_uboOffset = 0,
+                .m_texture = 1,
+                .m_opacity = 1.0f,
+                .m_shouldAnimate = false,
+                .m_culled = false};
+
+            m_meshes.emplace_back(mesh);
+            m_nodes.emplace_back(node);
+        }
+
         // Load some Node textures.
         std::array texturePaths(std::to_array<const char*>({"textures/Tile.png", "textures/Cobble.png"}));
 
