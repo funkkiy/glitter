@@ -711,8 +711,8 @@ private:
 
                 // Obtain the AABB's scaled and translated transform.
                 auto aabbTransform = glm::mat4(1.0f);
-                aabbTransform = glm::scale(aabbTransform, node.m_scale);
                 aabbTransform = glm::translate(aabbTransform, node.m_position);
+                aabbTransform = glm::scale(aabbTransform, node.m_scale);
 
                 AABB aabb = m_meshes[node.m_meshID].m_aabb;
                 std::array aabbCorners = std::to_array({
@@ -778,8 +778,8 @@ private:
             // The Model has to follow the Scale-Rotate-Translate
             // order.
             auto model = glm::mat4(1.0f);
-            model = glm::scale(model, node.m_scale);
             model = glm::translate(model, node.m_position);
+            model = glm::scale(model, node.m_scale);
 
             PerDrawData shaderData {.m_model = model, .m_opacity = glm::vec4(node.m_opacity)};
             node.m_uboOffset = m_uboAllocator.Push(shaderData);
