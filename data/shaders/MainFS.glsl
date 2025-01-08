@@ -4,7 +4,7 @@ in vec2 v_TexCoord;
 in vec3 v_Normal;
 in vec3 v_FragPos;
 
-layout (std140, binding = 0) uniform CommonData
+layout(std140, binding = 0) uniform CommonData
 {
     mat4 u_View;
     mat4 u_Projection;
@@ -13,7 +13,7 @@ layout (std140, binding = 0) uniform CommonData
     vec4 u_LightColor;
 };
 
-layout (std140, binding = 1) uniform PerDrawData
+layout(std140, binding = 1) uniform PerDrawData
 {
     mat4 u_Model;
     vec4 u_Opacity;
@@ -24,7 +24,7 @@ uniform sampler2D u_Texture;
 out vec4 FragColor;
 
 void main()
-{ 
+{
     vec3 EyePos = u_EyePos.xyz;
     vec3 LightPos = u_LightPos.xyz;
     vec3 LightColor = u_LightColor.rgb;
