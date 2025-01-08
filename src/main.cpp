@@ -249,7 +249,7 @@ private:
 
                     for (size_t i = 0; i < nodesPerPress; i++) {
                         app->m_nodes.push_back(Node {.m_position = glm::sphericalRand(45.0f),
-                            .m_scale = glm::vec3(0.25f),
+                            .m_scale = glm::vec3(1.0f),
                             .m_meshID = std::rand() % app->m_meshes.size(),
                             .m_uboOffset = 0,
                             .m_texture = app->m_loadedTextures[std::rand() % app->m_loadedTextures.size()],
