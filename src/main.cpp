@@ -586,7 +586,8 @@ private:
             glNamedBufferStorage(ebo, static_cast<GLsizeiptr>(sizeof(uint32_t) * planeIndices.size()), planeIndices.data(), 0);
             glObjectLabel(GL_BUFFER, ebo, -1, "EBO");
 
-            Primitive prim {.m_vbo = vbo, .m_ebo = ebo, .m_baseTexture = 0, .m_elementCount = planeIndices.size()};
+            Primitive prim {
+                .m_vbo = vbo, .m_ebo = ebo, .m_baseTexture = 0, .m_elementCount = narrow_into<GLsizei>(planeIndices.size())};
 
             Mesh mesh {
                 .m_primitives = {prim},
