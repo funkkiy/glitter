@@ -594,14 +594,15 @@ private:
                   .m_aabb = {glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 1.0f)}
             };
 
-            Node node {.m_position = glm::vec3(-2.5f, -1.0f, 2.5f),
-                .m_scale = glm::vec3(5.0f),
+            Node node {.m_position = glm::vec3(-25.0f, -15.0f, 2.5f),
+                .m_scale = glm::vec3(35.0f),
                 .m_meshID = m_meshes.size(),
                 .m_uboOffset = 0,
                 .m_texture = 1,
                 .m_opacity = 1.0f,
                 .m_shouldAnimate = false,
-                .m_culled = false};
+                .m_culled = false,
+                .m_neverCull = true};
 
             m_meshes.emplace_back(mesh);
             m_nodes.emplace_back(node);
@@ -773,18 +774,23 @@ private:
 
                 // Check if any corners of the AABB are inside one of the viewing frustums. If so, don't cull that Node.
                 bool cullNode = true;
-                for (auto& corner : aabbCorners) {
-                    bool insideLeft = isInsideHalfspace(corner, frustumPlanes[0]);
-                    bool insideRight = isInsideHalfspace(corner, frustumPlanes[1]);
-                    bool insideBottom = isInsideHalfspace(corner, frustumPlanes[2]);
-                    bool insideTop = isInsideHalfspace(corner, frustumPlanes[3]);
-                    bool insideNear = isInsideHalfspace(corner, frustumPlanes[4]);
-                    bool insideFar = isInsideHalfspace(corner, frustumPlanes[5]);
 
-                    if (insideLeft && insideRight && insideBottom && insideTop && insideNear && insideFar) {
-                        cullNode = false;
-                        break;
+                if (!node.m_neverCull) {
+                    for (auto& corner : aabbCorners) {
+                        bool insideLeft = isInsideHalfspace(corner, frustumPlanes[0]);
+                        bool insideRight = isInsideHalfspace(corner, frustumPlanes[1]);
+                        bool insideBottom = isInsideHalfspace(corner, frustumPlanes[2]);
+                        bool insideTop = isInsideHalfspace(corner, frustumPlanes[3]);
+                        bool insideNear = isInsideHalfspace(corner, frustumPlanes[4]);
+                        bool insideFar = isInsideHalfspace(corner, frustumPlanes[5]);
+
+                        if (insideLeft && insideRight && insideBottom && insideTop && insideNear && insideFar) {
+                            cullNode = false;
+                            break;
+                        }
                     }
+                } else {
+                    cullNode = false;
                 }
                 if (cullNode) {
                     numCulledNodes += 1;
@@ -1076,6 +1082,7 @@ private:
 
         bool m_shouldAnimate;
         bool m_culled;
+        bool m_neverCull {false};
     };
     std::vector<Node> m_nodes;
 
