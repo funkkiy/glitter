@@ -146,8 +146,8 @@ public:
         }
 
         while (!glfwWindowShouldClose(m_window)) {
-            float currentTick = glfwGetTime();
-            float dt = currentTick - m_lastTick;
+            double currentTick = glfwGetTime();
+            double dt = currentTick - m_lastTick;
 
             Tick(dt);
             Render();
@@ -635,7 +635,7 @@ private:
         return PrepareResult::Ok;
     }
 
-    void Tick(float dt)
+    void Tick(double dt)
     {
         glfwPollEvents();
 
@@ -835,8 +835,8 @@ private:
         glBindVertexArray(m_mainVAO);
 
         // Split Node elements between opaque and transparent.
-        std::vector<Node> opaqueNodes {};
-        std::vector<Node> transparentNodes {};
+        std::vector<Node*> opaqueNodes {};
+        std::vector<Node*> transparentNodes {};
         for (Node& node : m_nodes) {
             if (m_frustumCulling) {
                 if (node.m_culled) {
@@ -845,9 +845,9 @@ private:
             }
 
             if (node.m_opacity == 1.0f) {
-                opaqueNodes.emplace_back(node);
+                opaqueNodes.emplace_back(&node);
             } else if (node.m_opacity != 0.0f) {
-                transparentNodes.emplace_back(node);
+                transparentNodes.emplace_back(&node);
             } else {
                 // A totally transparent Node (opacity = 0.0f).
                 continue;
@@ -855,18 +855,18 @@ private:
         }
 
         // Sort each opaque Node from front-to-back.
-        std::sort(opaqueNodes.begin(), opaqueNodes.end(), [&eyePos](const Node& a, const Node& b) {
-            return glm::distance(eyePos, a.m_position) < glm::distance(eyePos, b.m_position);
+        std::sort(opaqueNodes.begin(), opaqueNodes.end(), [&eyePos](const Node* a, const Node* b) {
+            return glm::distance(eyePos, a->m_position) < glm::distance(eyePos, b->m_position);
         });
 
         // Sort each transparent Node from back-to-front.
-        std::sort(transparentNodes.begin(), transparentNodes.end(), [&eyePos](const Node& a, const Node& b) {
-            return glm::distance(eyePos, a.m_position) > glm::distance(eyePos, b.m_position);
+        std::sort(transparentNodes.begin(), transparentNodes.end(), [&eyePos](const Node* a, const Node* b) {
+            return glm::distance(eyePos, a->m_position) > glm::distance(eyePos, b->m_position);
         });
 
-        auto renderNodes = [this](const std::vector<Node>& nodes) {
-            for (const Node& node : nodes) {
-                size_t meshIdx = node.m_meshID;
+        auto renderNodes = [this](const std::vector<Node*>& nodes) {
+            for (const Node* node : nodes) {
+                size_t meshIdx = node->m_meshID;
 
                 for (const auto& primitive : m_meshes[meshIdx].m_primitives) {
                     // Attach the VBO to the VAO.
@@ -880,10 +880,10 @@ private:
 
                     // Bind the Per-Draw UBO data into the second slot of the UBO.
                     glBindBufferRange(
-                        GL_UNIFORM_BUFFER, 1, m_mainUBO, static_cast<GLintptr>(node.m_uboOffset), sizeof(PerDrawData));
+                        GL_UNIFORM_BUFFER, 1, m_mainUBO, static_cast<GLintptr>(node->m_uboOffset), sizeof(PerDrawData));
 
                     // Bind the texture.
-                    glBindTextureUnit(0, node.m_texture);
+                    glBindTextureUnit(0, node->m_texture);
 
                     // Draw the Primitive!
                     glDrawElements(GL_TRIANGLES, primitive.m_elementCount, GL_UNSIGNED_INT, nullptr);
@@ -1086,7 +1086,7 @@ private:
     bool m_drawAABBs {false};
 
     float m_sceneGamma {1.0f};
-    double m_lastTick;
+    double m_lastTick {0.0f};
 };
 
 } // namespace Glitter

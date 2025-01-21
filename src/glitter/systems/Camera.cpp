@@ -98,7 +98,7 @@ void Camera::ProcessMouseButton(int button, int action, int mods)
     }
 }
 
-void Camera::Tick(float dt)
+void Camera::Tick(double dt)
 {
     constexpr float camSpeed = 25.0f;
 
@@ -122,7 +122,7 @@ void Camera::Tick(float dt)
     if (m_inputState.e) {
         posDelta += m_up;
     }
-    m_position += dt * camSpeed * posDelta;
+    m_position += static_cast<float>(dt) * camSpeed * posDelta;
 }
 
 } // namespace Glitter::Gfx

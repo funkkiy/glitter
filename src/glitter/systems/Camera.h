@@ -12,7 +12,7 @@ public:
     void ProcessKeys(int key, int action);
     void ProcessMouse(double x, double y);
     void ProcessMouseButton(int button, int action, int mods);
-    void Tick(float dt);
+    void Tick(double dt);
 
     glm::vec3 m_position;
     glm::vec3 m_up;
