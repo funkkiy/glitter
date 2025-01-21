@@ -2,6 +2,7 @@
 #include "glitter/ImGuiConfig.h"
 #include "glitter/gfx/LinearAllocator.h"
 #include "glitter/gfx/VAO.h"
+#include "glitter/systems/Camera.h"
 #include "glitter/util/Common.h"
 #include "glitter/util/File.h"
 
@@ -145,8 +146,13 @@ public:
         }
 
         while (!glfwWindowShouldClose(m_window)) {
-            Tick();
+            float currentTick = glfwGetTime();
+            float dt = currentTick - m_lastTick;
+
+            Tick(dt);
             Render();
+
+            m_lastTick = currentTick;
         }
 
         Finish();
@@ -237,6 +243,14 @@ private:
         glfwSetKeyCallback(m_window, [](GLFWwindow* window, int key, int /*scancode*/, int action, int /*mods*/) {
             auto* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
             switch (key) {
+            case GLFW_KEY_W:
+            case GLFW_KEY_A:
+            case GLFW_KEY_S:
+            case GLFW_KEY_D:
+            case GLFW_KEY_Q:
+            case GLFW_KEY_E:
+                app->m_currentCamera.ProcessKeys(key, action);
+                break;
             case GLFW_KEY_SPACE:
                 if (action == GLFW_RELEASE) {
                     size_t nodesPerPress = Glitter::Config::MAX_NODES / 20;
@@ -250,8 +264,8 @@ private:
                     }
 
                     for (size_t i = 0; i < nodesPerPress; i++) {
-                        app->m_nodes.push_back(Node {.m_position = glm::sphericalRand(45.0f),
-                            .m_scale = glm::vec3(1.0f),
+                        app->m_nodes.push_back(Node {.m_position = glm::sphericalRand(15.0f),
+                            .m_scale = glm::vec3(0.5f),
                             .m_meshID = std::rand() % app->m_meshes.size(),
                             .m_uboOffset = 0,
                             .m_texture = app->m_loadedTextures[std::rand() % app->m_loadedTextures.size()],
@@ -272,6 +286,17 @@ private:
             default:
                 break;
             }
+        });
+
+        glfwSetInputMode(m_window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+        glfwSetCursorPosCallback(m_window, [](GLFWwindow* window, double x, double y) {
+            auto* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
+            app->m_currentCamera.ProcessMouse(x, y);
+        });
+
+        glfwSetMouseButtonCallback(m_window, [](GLFWwindow* window, int button, int action, int mods) {
+            auto* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
+            app->m_currentCamera.ProcessMouseButton(button, action, mods);
         });
 
         if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
@@ -609,7 +634,7 @@ private:
         return PrepareResult::Ok;
     }
 
-    void Tick()
+    void Tick(float dt)
     {
         glfwPollEvents();
 
@@ -626,6 +651,8 @@ private:
                 node.m_opacity = std::clamp(std::abs(1.25f * std::cosf(static_cast<float>(glfwGetTime()))), 0.0f, 1.0f);
             }
         }
+
+        m_currentCamera.Tick(dt);
     }
 
     void Render()
@@ -638,8 +665,8 @@ private:
         m_uboAllocator.Clear();
 
         // Calculate View and Projection.
-        glm::vec3 eyePos = glm::vec3(std::sin(glfwGetTime()), 2.5f, -3.5f);
-        glm::mat4 view = glm::lookAt(eyePos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::vec3 eyePos = m_currentCamera.m_position;
+        glm::mat4 view = glm::lookAt(eyePos, eyePos + m_currentCamera.m_direction, m_currentCamera.m_up);
         glm::mat4 projection = glm::perspective(
             glm::radians(45.0f), static_cast<float>(m_windowWidth) / static_cast<float>(m_windowHeight), 1.0f, 100.0f);
         m_currentView = view;
@@ -676,7 +703,7 @@ private:
         // Write the CommonData into the UBO-backing CPU buffer.
         CommonData commonData = {.m_view = view,
             .m_projection = projection,
-            .m_eyePos = glm::vec4(eyePos, 1.0),
+            .m_eyePos = glm::vec4(m_currentCamera.m_position, 1.0),
             .m_lightPos = glm::vec4(1.0, 0.5, -0.5, 1.0),
             .m_lightColor = glm::vec4(1.0, 1.0, 1.0, 1.0)};
         m_uboAllocator.Push(commonData);
@@ -1015,6 +1042,8 @@ private:
     glm::mat4 m_currentView {};
     glm::mat4 m_currentProjection {};
 
+    Glitter::Gfx::Camera m_currentCamera {glm::vec3()};
+
     struct CommonData {
         glm::mat4 m_view;
         glm::mat4 m_projection;
@@ -1056,6 +1085,7 @@ private:
     bool m_drawAABBs {false};
 
     float m_sceneGamma {1.0f};
+    double m_lastTick;
 };
 
 } // namespace Glitter

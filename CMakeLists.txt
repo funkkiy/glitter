@@ -88,6 +88,10 @@ list(APPEND GLITTER_SOURCES
     src/glitter/gfx/LinearAllocator.h
     src/glitter/gfx/VAO.cpp
     src/glitter/gfx/VAO.h
+
+    # glitter systems
+    src/glitter/systems/Camera.cpp
+    src/glitter/systems/Camera.h
 )
 
 list(APPEND GLITTER_VENDOR_SOURCES
