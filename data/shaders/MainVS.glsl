@@ -4,13 +4,21 @@ layout (location = 0) in vec3 a_Position;
 layout (location = 1) in vec2 a_TexCoord;
 layout (location = 2) in vec3 a_Normal;
 
-layout (std140, binding = 0) uniform CommonData
+layout(std140, binding = 0) uniform CommonData
 {
     mat4 u_View;
     mat4 u_Projection;
     vec4 u_EyePos;
-    vec4 u_LightPos;
-    vec4 u_LightColor;
+
+    // Directional Light.
+    vec4 u_DirLightDirection;
+    vec4 u_DirLightColor;
+
+    // Point Light.
+    vec4 u_PointLightPosition;
+    vec4 u_PointLightColor;
+    vec4 u_PointLightAttenuation;
+    float u_PointLightRadius;
 };
 
 layout (std140, binding = 1) uniform PerDrawData

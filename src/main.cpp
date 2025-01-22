@@ -594,7 +594,7 @@ private:
                   .m_aabb = {glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 1.0f)}
             };
 
-            Node node {.m_position = glm::vec3(-25.0f, -15.0f, 2.5f),
+            Node node {.m_position = glm::vec3(-15.0f, -15.0f, -15.0f),
                 .m_scale = glm::vec3(35.0f),
                 .m_meshID = m_meshes.size(),
                 .m_uboOffset = 0,
@@ -705,9 +705,13 @@ private:
         // Write the CommonData into the UBO-backing CPU buffer.
         CommonData commonData = {.m_view = view,
             .m_projection = projection,
-            .m_eyePos = glm::vec4(m_currentCamera.m_position, 1.0),
-            .m_lightPos = glm::vec4(1.0, 0.5, -0.5, 1.0),
-            .m_lightColor = glm::vec4(1.0, 1.0, 1.0, 1.0)};
+            .m_eyePos = glm::vec4(m_currentCamera.m_position, 1.0f),
+            .m_dirLightDirection = glm::vec4(1.0f, 0.5f, -0.5f, 1.0f),
+            .m_dirLightColor = glm::vec4(0.3f, 0.0f, 0.5f, 1.0f),
+            .m_pointLightPosition = glm::vec4(),
+            .m_pointLightColor = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f),
+            .m_pointLightAttenuation = glm::vec4(1.0f, 0.09f, 0.032f, 1.0f),
+            .m_pointLightRadius = 50.0f};
         m_uboAllocator.Push(commonData);
 
         // Write each Node's PerDrawData into the buffer.
@@ -1055,8 +1059,16 @@ private:
         glm::mat4 m_view;
         glm::mat4 m_projection;
         glm::vec4 m_eyePos;
-        glm::vec4 m_lightPos;
-        glm::vec4 m_lightColor;
+
+        // Directional Light.
+        glm::vec4 m_dirLightDirection;
+        glm::vec4 m_dirLightColor;
+
+        // Point Light.
+        glm::vec4 m_pointLightPosition;
+        glm::vec4 m_pointLightColor;
+        glm::vec4 m_pointLightAttenuation;
+        float m_pointLightRadius;
     };
     struct PerDrawData {
         glm::mat4 m_model;
