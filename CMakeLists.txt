@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.31)
 
 project(Glitter LANGUAGES CXX C)
 
@@ -22,6 +22,19 @@ string(CONCAT WALL_MSVC "$<"
 
 # multi-cpu build
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/MP>)
+
+# livepp support
+option(ENABLE_LIVEPP_SUPPORT "Enable LivePP (MSVC only.)" ON)
+
+if(ENABLE_LIVEPP_SUPPORT)
+    if (NOT MSVC)
+        message(FATAL_ERROR "LivePP is only supported with MSVC builds.")
+    endif()
+
+    add_compile_definitions("GLITTER_WITH_LIVEPP")
+    add_compile_options("/Zi")
+    add_link_options("/FUNCTIONPADMIN /OPT:NOREF /OPT:NOICF /DEBUG:FULL")
+endif()
 
 # colored output
 set(CMAKE_COLOR_DIAGNOSTICS TRUE)
@@ -132,6 +145,9 @@ list(APPEND GLITTER_VENDOR_INCLUDES
 
     # stb
     vendor/stb
+	
+	# livepp
+	vendor/livepp/API/x64
 )
 
 list(APPEND GLITTER_PRECOMPILED_HEADERS

@@ -31,6 +31,8 @@
 #include <cstdlib>
 #include <ctime>
 
+#include <LPP_API_x64_CPP.h>
+
 namespace Glitter {
 
 struct Primitive {
@@ -133,6 +135,17 @@ public:
     {
         spdlog::info("Started Glitter.");
 
+#ifdef GLITTER_WITH_LIVEPP
+        // Start LivePP agent.
+        lpp::LppSynchronizedAgent lppAgent = lpp::LppCreateSynchronizedAgent(nullptr, L"..\\..\\glitter\\vendor\\livepp");
+        if (!lpp::LppIsValidSynchronizedAgent(&lppAgent)) {
+            spdlog::error("LivePP initialization failed!");
+            Finish();
+            return;
+        }
+        lppAgent.EnableModule(lpp::LppGetCurrentModulePath(), lpp::LPP_MODULES_OPTION_ALL_IMPORT_MODULES, nullptr, nullptr);
+#endif
+
         if (Initialize() != InitializeResult::Ok) {
             spdlog::error("Initialize() failed!");
             Finish();
@@ -146,6 +159,16 @@ public:
         }
 
         while (!glfwWindowShouldClose(m_window)) {
+#ifdef GLITTER_WITH_LIVEPP
+            if (lppAgent.WantsReload(lpp::LPP_RELOAD_OPTION_SYNCHRONIZE_WITH_RELOAD)) {
+                lppAgent.Reload(lpp::LPP_RELOAD_BEHAVIOUR_WAIT_UNTIL_CHANGES_ARE_APPLIED);
+            }
+
+            if (lppAgent.WantsRestart()) {
+                lppAgent.Restart(lpp::LPP_RESTART_BEHAVIOUR_INSTANT_TERMINATION, 0, nullptr);
+            }
+#endif
+
             double currentTick = glfwGetTime();
             double dt = currentTick - m_lastTick;
 
@@ -154,6 +177,11 @@ public:
 
             m_lastTick = currentTick;
         }
+
+#ifdef GLITTER_WITH_LIVEPP
+        // Stop LivePP agent.
+        lpp::LppDestroySynchronizedAgent(&lppAgent);
+#endif
 
         Finish();
     }
