@@ -730,13 +730,16 @@ private:
             frustumPlanes[5] = far;
         }
 
+        glm::vec4 pointLightPosition = glm::vec4(0.0f, std::sinf(glfwGetTime()) * 25.0f, 0.0f, 1.0f);
+        m_debugData.PushDebugSphere(pointLightPosition, m_pointLightRadius);
+
         // Write the CommonData into the UBO-backing CPU buffer.
         CommonData commonData = {.m_view = view,
             .m_projection = projection,
             .m_eyePos = glm::vec4(m_currentCamera.m_position, 1.0f),
             .m_dirLightDirection = glm::vec4(1.0f, 0.5f, -0.5f, 1.0f),
             .m_dirLightColor = glm::vec4(0.3f, 0.0f, 0.5f, 1.0f),
-            .m_pointLightPosition = glm::vec4(),
+            .m_pointLightPosition = pointLightPosition,
             .m_pointLightColor = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f),
             .m_pointLightRadius = m_pointLightRadius};
         m_uboAllocator.Push(commonData);
@@ -1070,6 +1073,13 @@ private:
         {
             m_debugLines.emplace_back(a.x, a.y, a.z);
             m_debugLines.emplace_back(b.x, b.y, b.z);
+        }
+
+        void PushDebugSphere(glm::vec3 position, float radius)
+        {
+            PushDebugLine(position - glm::vec3(radius, 0.0f, 0.0f), position + glm::vec3(radius, 0.0f, 0.0f));
+            PushDebugLine(position - glm::vec3(0.0f, radius, 0.0f), position + glm::vec3(0.0f, radius, 0.0f));
+            PushDebugLine(position - glm::vec3(0.0f, 0.0f, radius), position + glm::vec3(0.0f, 0.0f, radius));
         }
 
         void Clear() { m_debugLines.clear(); }
