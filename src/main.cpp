@@ -609,7 +609,7 @@ private:
         }
 
         // Load some Node textures.
-        std::array texturePaths(std::to_array<const char*>({"textures/Tile.png", "textures/Cobble.png"}));
+        std::array texturePaths(std::to_array<const char*>({"textures/Froge.png", "textures/Tile.png"}));
 
         for (auto& path : texturePaths) {
             GLuint texture {};
