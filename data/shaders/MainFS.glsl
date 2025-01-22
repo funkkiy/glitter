@@ -17,7 +17,6 @@ layout(std140, binding = 0) uniform CommonData
     // Point Light.
     vec4 u_PointLightPosition;
     vec4 u_PointLightColor;
-    vec4 u_PointLightAttenuation;
     float u_PointLightRadius;
 };
 
@@ -57,7 +56,8 @@ vec3 PointLight(vec3 Position, vec3 Color, float Radius)
 
     // Attenuation
     float Distance = length(LightDir);
-    float Attenuation = 1.0 / (u_PointLightAttenuation.x + u_PointLightAttenuation.y * Distance + u_PointLightAttenuation.z * (Distance * Distance));
+    float AttenuationTerm = (Distance / Radius) * 5.0;
+    float Attenuation = 1.0 / ((AttenuationTerm * AttenuationTerm) + 1.0);
 
     // Diffuse
     float NDotL = max(dot(Normal, LightDir), 0.0);

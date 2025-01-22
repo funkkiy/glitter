@@ -17,7 +17,6 @@ layout(std140, binding = 0) uniform CommonData
     // Point Light.
     vec4 u_PointLightPosition;
     vec4 u_PointLightColor;
-    vec4 u_PointLightAttenuation;
     float u_PointLightRadius;
 };
 

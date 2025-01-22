@@ -710,8 +710,7 @@ private:
             .m_dirLightColor = glm::vec4(0.3f, 0.0f, 0.5f, 1.0f),
             .m_pointLightPosition = glm::vec4(),
             .m_pointLightColor = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f),
-            .m_pointLightAttenuation = glm::vec4(1.0f, 0.09f, 0.032f, 1.0f),
-            .m_pointLightRadius = 50.0f};
+            .m_pointLightRadius = m_pointLightRadius};
         m_uboAllocator.Push(commonData);
 
         // Write each Node's PerDrawData into the buffer.
@@ -829,6 +828,7 @@ private:
         }
         ImGui::SeparatorText("Scene Properties");
         ImGui::SliderFloat("Scene Gamma", &m_sceneGamma, 0.0f, 5.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderFloat("Point Light Radius", &m_pointLightRadius, 0.0f, 100.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
         ImGui::End();
 
         ImGui::Begin("Glitter Framebuffers");
@@ -1067,7 +1067,6 @@ private:
         // Point Light.
         glm::vec4 m_pointLightPosition;
         glm::vec4 m_pointLightColor;
-        glm::vec4 m_pointLightAttenuation;
         float m_pointLightRadius;
     };
     struct PerDrawData {
@@ -1105,6 +1104,7 @@ private:
     bool m_drawAABBs {false};
 
     float m_sceneGamma {1.0f};
+    float m_pointLightRadius {50.0f};
     double m_lastTick {0.0f};
 };
 
