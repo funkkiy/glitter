@@ -32,8 +32,8 @@ if(ENABLE_LIVEPP_SUPPORT)
     endif()
 
     add_compile_definitions("GLITTER_WITH_LIVEPP")
-    add_compile_options("/Zi")
-    add_link_options("/FUNCTIONPADMIN /OPT:NOREF /OPT:NOICF /DEBUG:FULL")
+    add_compile_options("SHELL:/Zi /Gm- /Gy /Gw")
+    add_link_options("SHELL:/FUNCTIONPADMIN /OPT:NOREF /OPT:NOICF /DEBUG:FULL")
 endif()
 
 # colored output
