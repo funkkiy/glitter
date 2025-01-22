@@ -698,7 +698,7 @@ private:
         glm::vec3 eyePos = m_currentCamera.m_position;
         glm::mat4 view = glm::lookAt(eyePos, eyePos + m_currentCamera.m_direction, m_currentCamera.m_up);
         glm::mat4 projection = glm::perspective(
-            glm::radians(45.0f), static_cast<float>(m_windowWidth) / static_cast<float>(m_windowHeight), 1.0f, 100.0f);
+            glm::radians(45.0f), static_cast<float>(m_windowWidth) / static_cast<float>(m_windowHeight), 1.0f, 200.0f);
         m_currentView = view;
         m_currentProjection = projection;
 
