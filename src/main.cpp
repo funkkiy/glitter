@@ -31,7 +31,9 @@
 #include <cstdlib>
 #include <ctime>
 
+#ifdef GLITTER_WITH_LIVEPP
 #include <LPP_API_x64_CPP.h>
+#endif
 
 namespace Glitter {
 
