@@ -733,7 +733,7 @@ private:
             frustumPlanes[5] = far;
         }
 
-        glm::vec4 pointLightPosition = glm::vec4(0.0f, std::sinf(glfwGetTime()) * 25.0f, 0.0f, 1.0f);
+        glm::vec4 pointLightPosition = glm::vec4(0.0f, std::sinf(static_cast<float>(glfwGetTime())) * 25.0f, 0.0f, 1.0f);
         m_debugData.PushDebugSphere(pointLightPosition, m_pointLightRadius);
 
         // Write the CommonData into the UBO-backing CPU buffer.
