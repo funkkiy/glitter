@@ -23,6 +23,11 @@ string(CONCAT WALL_MSVC "$<"
 # multi-cpu build
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/MP>)
 
+# inline `__forceinline` in debug msvc builds
+add_compile_options(
+    $<$<CXX_COMPILER_ID:MSVC>:/Ob1>
+    $<$<CXX_COMPILER_ID:MSVC>:/d2Obforceinline>)
+
 # livepp support
 option(ENABLE_LIVEPP_SUPPORT "Enable LivePP (MSVC only.)" ON)
 
