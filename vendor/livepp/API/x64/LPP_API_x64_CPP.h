@@ -8,11 +8,21 @@
 #ifndef _INC_WINDOWS
 	// <Windows.h> was not included, so we provide our own typedefs and function prototypes for the required APIs
 
+	// Clang does not like several of the typedefs, temporarily disable this warning
+#	if defined(__clang__)
+#		if __has_warning("-Wreserved-identifier")
+#			pragma clang diagnostic push
+#			pragma clang diagnostic ignored "-Wreserved-identifier"
+#		endif
+#	endif
+
 	// opaque types
 	struct HINSTANCE__;
 	typedef HINSTANCE__* HINSTANCE;
 	typedef HINSTANCE HMODULE;
-	struct IMAGE_DOS_HEADER;
+
+	struct _IMAGE_DOS_HEADER;
+	typedef _IMAGE_DOS_HEADER IMAGE_DOS_HEADER;
 
 	// standard types
 	typedef int BOOL;
@@ -41,6 +51,15 @@
 
 	// required .lib for the Win32 APIs
 #	pragma comment(lib, "Kernel32.lib")
+
+	// Restore Clang warnings
+#	if defined(__clang__)
+#		if __has_warning("-Wreserved-identifier")
+#			pragma clang diagnostic push
+#			pragma clang diagnostic ignored "-Wreserved-identifier"
+#		endif
+#	endif
+
 #endif
 
 

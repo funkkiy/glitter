@@ -1,2 +1,2 @@
-Live++ for Windows C++, 2.8.1
-Released on January 15, 2025
+Live++ for Windows C++, 2.11.1
+Released on December 5, 2025
