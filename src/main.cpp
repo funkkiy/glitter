@@ -4,6 +4,7 @@
 #include "glitter/gfx/VAO.h"
 #include "glitter/systems/Camera.h"
 #include "glitter/util/Common.h"
+#include "glitter/util/Debug.h"
 #include "glitter/util/File.h"
 
 #define GLFW_INCLUDE_NONE
@@ -934,8 +935,9 @@ private:
             }
         };
 
-        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Main FB Draw");
         {
+            GL_DEBUG_SCOPE("Main FB Draw");
+
             glBindFramebuffer(GL_FRAMEBUFFER, *m_fbo);
             // The FBO needs its own independent clear.
             glDepthMask(GL_TRUE);
@@ -943,30 +945,26 @@ private:
 
             // Render each opaque Node.
             if (!opaqueNodes.empty()) {
-                glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 1, -1, "Opaque Nodes");
-                {
-                    glDepthMask(GL_TRUE);
-                    renderNodes(opaqueNodes);
-                }
-                glPopDebugGroup();
+                GL_DEBUG_SCOPE("Opaque Nodes");
+
+                glDepthMask(GL_TRUE);
+                renderNodes(opaqueNodes);
             }
 
             // Render each transparent Node.
             if (!transparentNodes.empty()) {
-                glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 2, -1, "Transparent Nodes");
-                {
-                    glDepthMask(GL_FALSE);
-                    renderNodes(transparentNodes);
-                }
-                glPopDebugGroup();
+                GL_DEBUG_SCOPE("Transparent Nodes");
+
+                glDepthMask(GL_FALSE);
+                renderNodes(transparentNodes);
             }
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
-        glPopDebugGroup();
 
         // Render Post-Processing effects.
-        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Post-Processing");
         {
+            GL_DEBUG_SCOPE("Post-Processing");
+
             glUseProgram(m_ppfxProgram);
 
             // uniform layout(location = 0) sampler2D u_ColorTexture;
@@ -976,12 +974,12 @@ private:
 
             glDrawArrays(GL_TRIANGLES, 0, 3);
         }
-        glPopDebugGroup();
 
         // Render Debug.
         if (m_debugLines && !m_debugData.m_debugLines.empty()) {
-            glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 2, -1, "Debug");
             {
+                GL_DEBUG_SCOPE("Debug");
+
                 glDepthFunc(GL_ALWAYS);
 
                 // Bind the Program and VAO.
@@ -1006,16 +1004,15 @@ private:
 
                 glDepthFunc(GL_LEQUAL);
             }
-            glPopDebugGroup();
         }
 
         // Render Dear ImGui.
-        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 3, -1, "Dear ImGui");
         {
+            GL_DEBUG_SCOPE("Dear ImGui");
+
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         }
-        glPopDebugGroup();
 
         glfwSwapBuffers(m_window);
     }
