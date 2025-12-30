@@ -2,7 +2,7 @@
 
 namespace Glitter::Gfx {
 
-GLuint Glitter::Gfx::CreateVAO(std::string_view name, std::initializer_list<VAOAttribute> attributes)
+GLuint CreateVAO(std::string_view name, std::initializer_list<VAOAttribute> attributes)
 {
     GLuint vao = 0;
     glCreateVertexArrays(1, &vao);
