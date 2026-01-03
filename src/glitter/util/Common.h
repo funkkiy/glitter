@@ -21,3 +21,14 @@ template <typename Into, typename From> constexpr Into narrow_into(From x)
 
     return static_cast<Into>(x);
 }
+
+#define GLITTER_CONCAT(x, y) GLITTER_CONCAT_IMPL(x, y)
+#define GLITTER_CONCAT_IMPL(x, y) x ## y
+
+#ifdef _MSC_VER
+#define GLITTER_FORCE_INLINE __forceinline
+#elif defined(__clang__) || defined(__GNUC__)
+#define GLITTER_FORCE_INLINE inline __attribute__((always_inline))
+#else
+#define GLITTER_FORCE_INLINE inline
+#endif
