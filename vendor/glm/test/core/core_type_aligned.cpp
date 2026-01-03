@@ -1,3 +1,12 @@
+#include <glm/detail/setup.hpp>
+
+#if GLM_PLATFORM & GLM_PLATFORM_APPLE // Fail on Github macOS-latest (macOS-13 was fine)
+int main()
+{
+	return 0;
+}
+#else
+
 #ifndef GLM_FORCE_PURE
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #endif
@@ -111,3 +120,5 @@ int main()
 
 	return Error;
 }
+
+#endif//GLM_PLATFORM & GLM_PLATFORM_APPLE
