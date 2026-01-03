@@ -1,8 +1,8 @@
 #version 460 core
 
-layout (location = 0) in vec3 a_Position;
-layout (location = 1) in vec2 a_TexCoord;
-layout (location = 2) in vec3 a_Normal;
+layout(location = 0) in vec3 a_Position;
+layout(location = 1) in vec2 a_TexCoord;
+layout(location = 2) in vec3 a_Normal;
 
 layout(std140, binding = 0) uniform CommonData
 {
@@ -17,10 +17,19 @@ layout(std140, binding = 0) uniform CommonData
     // Point Light.
     vec4 u_PointLightPosition;
     vec4 u_PointLightColor;
+
+    // Spot Light.
+    vec4 u_SpotLightPosition;
+    vec4 u_SpotLightColor;
+    vec4 u_SpotLightDirection;
+
+    // Floats.
     float u_PointLightRadius;
+    float u_SpotLightAngleCos;
+    float u_SpotLightRange;
 };
 
-layout (std140, binding = 1) uniform PerDrawData
+layout(std140, binding = 1) uniform PerDrawData
 {
     mat4 u_Model;
     vec4 u_Opacity;

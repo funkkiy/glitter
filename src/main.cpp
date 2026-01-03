@@ -737,14 +737,23 @@ private:
         m_debugData.PushDebugSphere(pointLightPosition, m_pointLightRadius);
 
         // Write the CommonData into the UBO-backing CPU buffer.
-        CommonData commonData = {.m_view = view,
-            .m_projection = projection,
-            .m_eyePos = glm::vec4(m_currentCamera.m_position, 1.0f),
-            .m_dirLightDirection = glm::vec4(1.0f, 0.5f, -0.5f, 1.0f),
-            .m_dirLightColor = glm::vec4(0.3f, 0.0f, 0.5f, 1.0f),
-            .m_pointLightPosition = pointLightPosition,
-            .m_pointLightColor = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f),
-            .m_pointLightRadius = m_pointLightRadius};
+        CommonData commonData
+            = {.m_view = view,
+                  .m_projection = projection,
+                  .m_eyePos = glm::vec4(m_currentCamera.m_position, 1.0f),
+                  .m_dirLightDirection = glm::vec4(1.0f, 0.5f, -0.5f, 1.0f),
+                  .m_dirLightColor = glm::vec4(0.3f, 0.0f, 0.5f, 1.0f),
+                  .m_pointLightPosition = pointLightPosition,
+                  .m_pointLightColor = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f),
+                  .m_spotLightPosition = glm::vec4(0.0f),
+                  .m_spotLightColor = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f),
+                  .m_spotLightDirection = glm::vec4(std::cosf(static_cast<float>(glfwGetTime())) * 25.0f,
+                      std::sinf(static_cast<float>(glfwGetTime())) * 25.0f, 0.0f, 1.0f),
+                  .m_pointLightRadius = m_pointLightRadius,
+                  .m_spotLightAngleCos = std::cosf(glm::radians(m_spotLightAngle)),
+                  .m_spotLightRange = m_spotLightRange,
+                  .m_padding = 0.0f
+        };
         m_uboAllocator.Push(commonData);
 
         // Write each Node's PerDrawData into the buffer.
@@ -863,6 +872,8 @@ private:
         ImGui::SeparatorText("Scene Properties");
         ImGui::SliderFloat("Scene Gamma", &m_sceneGamma, 0.0f, 5.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
         ImGui::SliderFloat("Point Light Radius", &m_pointLightRadius, 0.0f, 100.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderFloat("Spot Light Angle", &m_spotLightAngle, 0.0f, 90.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderFloat("Spot Light Range", &m_spotLightRange, 0.0f, 100.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
         ImGui::End();
 
         ImGui::Begin("Glitter Framebuffers");
@@ -1104,8 +1115,19 @@ private:
         // Point Light.
         glm::vec4 m_pointLightPosition;
         glm::vec4 m_pointLightColor;
+
+        // Spot Light.
+        glm::vec4 m_spotLightPosition;
+        glm::vec4 m_spotLightColor;
+        glm::vec4 m_spotLightDirection;
+
+        // Floats.
         float m_pointLightRadius;
+        float m_spotLightAngleCos;
+        float m_spotLightRange;
+        float m_padding;
     };
+
     struct PerDrawData {
         glm::mat4 m_model;
         glm::vec4 m_opacity;
@@ -1142,6 +1164,8 @@ private:
 
     float m_sceneGamma {1.0f};
     float m_pointLightRadius {50.0f};
+    float m_spotLightAngle {30.0f};
+    float m_spotLightRange {50.0f};
     double m_lastTick {0.0f};
 };
 
