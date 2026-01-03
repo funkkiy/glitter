@@ -1,28 +1,25 @@
-Checks: >
-  -*,
-  bugprone-*,
-  -bugprone-easily-swappable-parameters,
-  performance-*,
-  readability-*,
-  -readability-identifier-length,
-  -readability-uppercase-literal-suffix,
-  -readability-magic-numbers,
-  -readability-isolate-declaration,
-  -readability-implicit-bool-conversion,
-  -readability-function-cognitive-complexity,
-  modernize-*,
-  -modernize-use-trailing-return-type,
-  cppcoreguidelines-*,
-  -cppcoreguidelines-avoid-magic-numbers,
-  -cppcoreguidelines-pro-type-union-access,
-  -cppcoreguidelines-pro-type-vararg,
-  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
-  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
-  -cppcoreguidelines-pro-type-reinterpret-cast,
-  clang-analyzer-core.*,
-  misc-unused-parameters,
-CheckOptions:
-  - key: bugprone-exception-escape.FunctionsThatShouldNotThrow
-    value: main
+Checks:
+  - '-*'
+  - 'bugprone-*'
+  - '-bugprone-easily-swappable-parameters'
+  - 'performance-*'
+  - 'readability-*'
+  - '-readability-identifier-length'
+  - '-readability-uppercase-literal-suffix'
+  - '-readability-magic-numbers'
+  - '-readability-isolate-declaration'
+  - '-readability-implicit-bool-conversion'
+  - '-readability-function-cognitive-complexity'
+  - 'modernize-*'
+  - '-modernize-use-trailing-return-type'
+  - 'cppcoreguidelines-*'
+  - '-cppcoreguidelines-avoid-magic-numbers'
+  - '-cppcoreguidelines-pro-type-union-access'
+  - '-cppcoreguidelines-pro-type-vararg'
+  - '-cppcoreguidelines-pro-bounds-pointer-arithmetic'
+  - '-cppcoreguidelines-pro-bounds-array-to-pointer-decay'
+  - '-cppcoreguidelines-pro-type-reinterpret-cast'
+  - 'clang-analyzer-core.*'
+  - 'misc-unused-parameters'
 WarningsAsErrors: ''
 FormatStyle: none
