@@ -21,7 +21,7 @@ Checks: >
   -cppcoreguidelines-pro-type-reinterpret-cast,
   clang-analyzer-core.*,
   misc-unused-parameters,
-CheckOptions: >
+CheckOptions:
   - key: bugprone-exception-escape.FunctionsThatShouldNotThrow
     value: main
 WarningsAsErrors: ''
