@@ -2,11 +2,11 @@
 
 namespace Glitter::Gfx {
 
-GLuint CreateVAO(std::string_view name, std::initializer_list<VAOAttribute> attributes)
+GLuint CreateVAO(const char *name, std::initializer_list<VAOAttribute> attributes)
 {
     GLuint vao = 0;
     glCreateVertexArrays(1, &vao);
-    glObjectLabel(GL_VERTEX_ARRAY, vao, -1, name.data());
+    glObjectLabel(GL_VERTEX_ARRAY, vao, -1, name);
 
     for (GLuint i = 0; i < attributes.size(); i++) {
         const VAOAttribute& attrib = *(attributes.begin() + i);

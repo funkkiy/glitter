@@ -15,6 +15,6 @@ struct VAOAttribute {
     GLboolean m_normalized {false};
 };
 
-[[nodiscard]] GLuint CreateVAO(std::string_view name, std::initializer_list<VAOAttribute> attributes);
+[[nodiscard]] GLuint CreateVAO(const char *name, std::initializer_list<VAOAttribute> attributes);
 
 } // namespace Glitter::Gfx
