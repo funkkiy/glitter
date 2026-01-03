@@ -595,7 +595,30 @@ private:
             }
         }
 
-        // Create ground plane.
+        // Load some Node textures.
+        std::array texturePaths(std::to_array<const char*>({"textures/Froge.png", "textures/Tile.png"}));
+
+        for (auto& path : texturePaths) {
+            GLuint texture {};
+            glCreateTextures(GL_TEXTURE_2D, 1, &texture);
+            glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_REPEAT);
+            glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glObjectLabel(GL_TEXTURE, texture, -1, std::format("Texture <{}>", path).c_str());
+
+            int width = 0, height = 0, nChannels = 0;
+            unsigned char* textureData = stbi_load(path, &width, &height, &nChannels, 4);
+            if (textureData) {
+                glTextureStorage2D(texture, 1, GL_RGBA8, width, height);
+                glTextureSubImage2D(texture, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, textureData);
+                glGenerateTextureMipmap(texture);
+            }
+            stbi_image_free(textureData);
+            m_loadedTextures.push_back(texture);
+        }
+
+                // Create ground plane.
         {
             std::array planeVerts(std::to_array<MeshVertex>({
                 {.x = 0.0f, .y = 0.0f, .z = 0.0f, .u = 0.0f, .v = 0.0f, .nx = 0.0f, .ny = 1.0f, .nz = 0.0f},
@@ -629,7 +652,7 @@ private:
                 .m_scale = glm::vec3(35.0f),
                 .m_meshID = m_meshes.size(),
                 .m_uboOffset = 0,
-                .m_texture = 1,
+                .m_texture = m_loadedTextures[0],
                 .m_opacity = 1.0f,
                 .m_shouldAnimate = false,
                 .m_culled = false,
@@ -637,29 +660,6 @@ private:
 
             m_meshes.emplace_back(mesh);
             m_nodes.emplace_back(node);
-        }
-
-        // Load some Node textures.
-        std::array texturePaths(std::to_array<const char*>({"textures/Froge.png", "textures/Tile.png"}));
-
-        for (auto& path : texturePaths) {
-            GLuint texture {};
-            glCreateTextures(GL_TEXTURE_2D, 1, &texture);
-            glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_REPEAT);
-            glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_REPEAT);
-            glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glObjectLabel(GL_TEXTURE, texture, -1, std::format("Texture <{}>", path).c_str());
-
-            int width = 0, height = 0, nChannels = 0;
-            unsigned char* textureData = stbi_load(path, &width, &height, &nChannels, 4);
-            if (textureData) {
-                glTextureStorage2D(texture, 1, GL_RGBA8, width, height);
-                glTextureSubImage2D(texture, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, textureData);
-                glGenerateTextureMipmap(texture);
-            }
-            stbi_image_free(textureData);
-            m_loadedTextures.push_back(texture);
         }
 
         CreateFramebuffer(m_windowWidth, m_windowHeight);
