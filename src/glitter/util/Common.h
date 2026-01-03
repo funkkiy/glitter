@@ -1,5 +1,9 @@
 #pragma once
 
+#include <type_traits>
+#include <limits>
+#include <utility>
+
 template <typename Into, typename From> constexpr Into narrow_into(From x)
 {
     static_assert(std::is_arithmetic_v<From> && std::is_arithmetic_v<Into>, "narrow_into requires arithmetic types");
