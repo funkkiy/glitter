@@ -618,7 +618,7 @@ private:
             m_loadedTextures.push_back(texture);
         }
 
-                // Create ground plane.
+        // Create ground plane.
         {
             std::array planeVerts(std::to_array<MeshVertex>({
                 {.x = 0.0f, .y = 0.0f, .z = 0.0f, .u = 0.0f, .v = 0.0f, .nx = 0.0f, .ny = 1.0f, .nz = 0.0f},
