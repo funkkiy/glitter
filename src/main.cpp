@@ -1092,6 +1092,41 @@ private:
             PushDebugLine(position - glm::vec3(0.0f, 0.0f, radius), position + glm::vec3(0.0f, 0.0f, radius));
         }
 
+        void PushDebugCone(glm::vec3 position, glm::vec3 direction, float angle, float range)
+        {
+            direction = glm::normalize(direction);
+            angle = glm::radians(angle);
+
+            constexpr int segments = 8;
+            constexpr float segmentAngle = 2 * glm::pi<float>() / segments;
+
+            glm::vec2 circlePoints[segments];
+            for (int i = 0; i < segments; i++) {
+                circlePoints[i] = glm::vec2(std::cosf(segmentAngle * i), std::sinf(segmentAngle * i));
+            }
+
+            // Generate a matrix that converts from "Circle Space" to "World Space".
+            glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+            if (std::abs(glm::dot(direction, glm::vec3(0.0f, 1.0f, 0.0f))) > 0.99f) {
+                up = glm::vec3(1.0f, 0.0f, 0.0f);
+            }
+            glm::vec3 right = glm::normalize(glm::cross(direction, up));
+            glm::vec3 forward = glm::normalize(glm::cross(right, direction));
+
+            glm::vec3 circlePoints3D[segments];
+            for (int i = 0; i < segments; i++) {
+                circlePoints3D[i] = circlePoints[i].x * right + circlePoints[i].y * forward;
+            }
+
+            glm::vec3 circleCenter = position + direction * range;
+            float circleRadius = std::tanf(angle) * range;
+            for (int i = 0; i < segments; i++) {
+                PushDebugLine(circleCenter + circleRadius * circlePoints3D[i],
+                    circleCenter + circleRadius * circlePoints3D[(i + 1) % segments]);
+                PushDebugLine(position, circleCenter + circleRadius * circlePoints3D[i]);
+            }
+        }
+
         void Clear() { m_debugLines.clear(); }
     } m_debugData;
 
