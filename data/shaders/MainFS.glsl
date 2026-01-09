@@ -19,6 +19,8 @@ layout(std140, binding = 0) uniform CommonData
     vec4 u_PointLightColor;
 
     // Spot Light.
+    mat4 u_SpotLightView;
+    mat4 u_SpotLightProjection;
     vec4 u_SpotLightPosition;
     vec4 u_SpotLightColor;
     vec4 u_SpotLightDirection;
@@ -35,7 +37,8 @@ layout(std140, binding = 1) uniform PerDrawData
     vec4 u_Opacity;
 };
 
-uniform sampler2D u_Texture;
+layout(binding = 0) uniform sampler2D u_Texture;
+layout(binding = 1) uniform sampler2D u_SpotLightTexture;
 
 out vec4 FragColor;
 
@@ -95,6 +98,30 @@ vec3 SpotLight(vec3 Position, vec3 Color, vec3 Direction, float Angle, float Ran
     return Attenuation * AngularAttenuation * DiffuseSpecular(LightDir, Color, Normal);
 }
 
+vec3 SpotLightGobo(vec3 Position, vec3 Color, vec3 Direction, float Angle, float Range)
+{
+    vec3 Normal = normalize(v_Normal);
+    vec3 LightVec = Position - v_FragPos;
+    vec3 LightDir = normalize(LightVec);
+
+    // Distance-Based Attenuation
+    float Distance = length(LightVec);
+    float AttenuationTerm = (Distance / Range) * 5.0;
+    float Attenuation = 1.0 / (1.0 + (AttenuationTerm * AttenuationTerm));
+
+    // Angular-Based Attenuation
+    float CosDirection = dot(-LightDir, normalize(Direction));
+    float AngularAttenuation = smoothstep(u_SpotLightAngleCos - 0.1, u_SpotLightAngleCos, CosDirection);
+
+    // Gobo Texture Projection
+    vec4 FragSpotCoord = u_SpotLightProjection * u_SpotLightView * vec4(v_FragPos, 1.0);
+    FragSpotCoord /= FragSpotCoord.w;
+    FragSpotCoord.xy = (FragSpotCoord.xy * 0.5) + 0.5;
+    vec3 Texture = texture(u_SpotLightTexture, FragSpotCoord.xy).rgb;
+
+    return Attenuation * AngularAttenuation * Texture * DiffuseSpecular(LightDir, Color, Normal);
+}
+
 void main()
 {
     vec3 EyePos = u_EyePos.xyz;
@@ -104,8 +131,8 @@ void main()
 
     vec3 CombinedDirectional = DirectionalLight(u_DirLightDirection.xyz, u_DirLightColor.rgb);
     vec3 CombinedPoint = PointLight(u_PointLightPosition.xyz, u_PointLightColor.rgb, u_PointLightRadius.x);
-    vec3 CombinedSpot
-        = SpotLight(u_SpotLightPosition.xyz, u_SpotLightColor.rgb, u_SpotLightDirection.xyz, u_SpotLightAngleCos, u_SpotLightRange);
+    vec3 CombinedSpot = SpotLightGobo(
+        u_SpotLightPosition.xyz, u_SpotLightColor.rgb, u_SpotLightDirection.xyz, u_SpotLightAngleCos, u_SpotLightRange);
 
     // Result
     vec3 CombinedLight = Ambient + CombinedDirectional + CombinedPoint + CombinedSpot;

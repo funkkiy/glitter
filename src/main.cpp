@@ -662,6 +662,9 @@ private:
             m_nodes.emplace_back(node);
         }
 
+        // Load SpotLight texture.
+        m_spotLightTexture = m_loadedTextures[0];
+
         CreateFramebuffer(m_windowWidth, m_windowHeight);
 
         return PrepareResult::Ok;
@@ -733,27 +736,35 @@ private:
             frustumPlanes[5] = far;
         }
 
+        // Calculate PointLight data.
         glm::vec4 pointLightPosition = glm::vec4(0.0f, std::sinf(static_cast<float>(glfwGetTime())) * 25.0f, 0.0f, 1.0f);
         m_debugData.PushDebugSphere(pointLightPosition, m_pointLightRadius);
 
+        // Calculate SpotLight data.
+        glm::vec3 spotLightPosition = glm::vec3(0.0f);
+        glm::vec3 spotLightDirection = glm::vec3(std::cosf(glfwGetTime()) * 25.0f, std::sinf(glfwGetTime()) * 25.0f, 0.0f);
+        glm::mat4 spotLightView
+            = glm::lookAt(spotLightPosition, spotLightPosition + spotLightDirection, glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 spotLightProjection = glm::perspective(glm::radians(m_spotLightAngle), 1.0f, 1.0f, m_spotLightRange);
+        m_debugData.PushDebugCone(spotLightPosition, spotLightDirection, m_spotLightAngle, m_spotLightRange);
+
         // Write the CommonData into the UBO-backing CPU buffer.
-        CommonData commonData
-            = {.m_view = view,
-                  .m_projection = projection,
-                  .m_eyePos = glm::vec4(m_currentCamera.m_position, 1.0f),
-                  .m_dirLightDirection = glm::vec4(1.0f, 0.5f, -0.5f, 1.0f),
-                  .m_dirLightColor = glm::vec4(0.3f, 0.0f, 0.5f, 1.0f),
-                  .m_pointLightPosition = pointLightPosition,
-                  .m_pointLightColor = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f),
-                  .m_spotLightPosition = glm::vec4(0.0f),
-                  .m_spotLightColor = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f),
-                  .m_spotLightDirection = glm::vec4(std::cosf(static_cast<float>(glfwGetTime())) * 25.0f,
-                      std::sinf(static_cast<float>(glfwGetTime())) * 25.0f, 0.0f, 1.0f),
-                  .m_pointLightRadius = m_pointLightRadius,
-                  .m_spotLightAngleCos = std::cosf(glm::radians(m_spotLightAngle)),
-                  .m_spotLightRange = m_spotLightRange,
-                  .m_padding = 0.0f
-        };
+        CommonData commonData = {.m_view = view,
+            .m_projection = projection,
+            .m_eyePos = glm::vec4(m_currentCamera.m_position, 1.0f),
+            .m_dirLightDirection = glm::vec4(1.0f, 0.5f, -0.5f, 1.0f),
+            .m_dirLightColor = glm::vec4(0.3f, 0.0f, 0.5f, 1.0f),
+            .m_pointLightPosition = pointLightPosition,
+            .m_pointLightColor = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f),
+            .m_spotLightView = spotLightView,
+            .m_spotLightProjection = spotLightProjection,
+            .m_spotLightPosition = glm::vec4(spotLightPosition, 1.0f),
+            .m_spotLightColor = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f),
+            .m_spotLightDirection = glm::vec4(spotLightDirection, 1.0f),
+            .m_pointLightRadius = m_pointLightRadius,
+            .m_spotLightAngleCos = std::cosf(glm::radians(m_spotLightAngle)),
+            .m_spotLightRange = m_spotLightRange,
+            .m_padding = 0.0f};
         m_uboAllocator.Push(commonData);
 
         // Write each Node's PerDrawData into the buffer.
@@ -939,6 +950,9 @@ private:
 
                     // Bind the texture.
                     glBindTextureUnit(0, node->m_texture);
+
+                    // Bind the SpotLight texture.
+                    glBindTextureUnit(1, m_spotLightTexture);
 
                     // Draw the Primitive!
                     glDrawElements(GL_TRIANGLES, primitive.m_elementCount, GL_UNSIGNED_INT, nullptr);
@@ -1152,6 +1166,8 @@ private:
         glm::vec4 m_pointLightColor;
 
         // Spot Light.
+        glm::mat4 m_spotLightView;
+        glm::mat4 m_spotLightProjection;
         glm::vec4 m_spotLightPosition;
         glm::vec4 m_spotLightColor;
         glm::vec4 m_spotLightDirection;
@@ -1201,6 +1217,7 @@ private:
     float m_pointLightRadius {50.0f};
     float m_spotLightAngle {30.0f};
     float m_spotLightRange {50.0f};
+    GLuint m_spotLightTexture {};
     double m_lastTick {0.0f};
 };
 

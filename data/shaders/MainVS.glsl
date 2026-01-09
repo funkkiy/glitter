@@ -19,6 +19,8 @@ layout(std140, binding = 0) uniform CommonData
     vec4 u_PointLightColor;
 
     // Spot Light.
+    mat4 u_SpotLightView;
+    mat4 u_SpotLightProjection;
     vec4 u_SpotLightPosition;
     vec4 u_SpotLightColor;
     vec4 u_SpotLightDirection;
