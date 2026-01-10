@@ -1135,9 +1135,10 @@ private:
             glm::vec3 circleCenter = position + direction * range;
             float circleRadius = std::tanf(angle) * range;
             for (int i = 0; i < segments; i++) {
-                PushDebugLine(circleCenter + circleRadius * circlePoints3D[i],
-                    circleCenter + circleRadius * circlePoints3D[(i + 1) % segments]);
-                PushDebugLine(position, circleCenter + circleRadius * circlePoints3D[i]);
+                glm::vec3 currentSegment = circleCenter + circleRadius * circlePoints3D[i];
+                glm::vec3 nextSegment = circleCenter + circleRadius * circlePoints3D[(i + 1) % segments];
+                PushDebugLine(currentSegment, nextSegment);
+                PushDebugLine(position, currentSegment);
             }
         }
 
