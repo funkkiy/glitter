@@ -130,6 +130,7 @@ list(APPEND GLITTER_VENDOR_SOURCES
     vendor/imgui/imgui_widgets.cpp
     vendor/imgui/backends/imgui_impl_glfw.cpp
     vendor/imgui/backends/imgui_impl_opengl3.cpp
+    vendor/imgui/misc/cpp/imgui_stdlib.cpp
 
     # stb
     vendor/stb/stb_image.cpp
@@ -150,6 +151,7 @@ list(APPEND GLITTER_VENDOR_INCLUDES
     # imgui
     vendor/imgui
     vendor/imgui/backends
+    vendor/imgui/misc/cpp
 
     # stb
     vendor/stb
