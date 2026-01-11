@@ -10,7 +10,7 @@ public:
     explicit Camera(glm::vec3 position);
 
     void ProcessKeys(int key, int action);
-    void ProcessMouse(double x, double y);
+    void ProcessMouse(float x, float y);
     void ProcessMouseButton(int button, int action, int mods);
     void Tick(double dt);
 
@@ -36,10 +36,10 @@ private:
 
         // mouse
         bool rightButton {false};
-        double prevX {};
-        double prevY {};
-        double x {};
-        double y {};
+        float prevX {};
+        float prevY {};
+        float x {};
+        float y {};
     } m_inputState;
 };
 

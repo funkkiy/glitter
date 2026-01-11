@@ -4,14 +4,14 @@
 
 namespace Glitter::Gfx {
 
-glm::vec3 DirectionFromEuler(double pitch, double yaw)
+glm::vec3 DirectionFromEuler(float pitch, float yaw)
 {
     float pitchRad = glm::radians(pitch);
     float yawRad = glm::radians(yaw);
-    float cosPitch = std::cos(pitchRad);
-    float sinPitch = std::sin(pitchRad);
-    float cosYaw = std::cos(yawRad);
-    float sinYaw = std::sin(yawRad);
+    float cosPitch = std::cosf(pitchRad);
+    float sinPitch = std::sinf(pitchRad);
+    float cosYaw = std::cosf(yawRad);
+    float sinYaw = std::sinf(yawRad);
 
     // Obtain the Direction
     return glm::normalize(glm::vec3(cosYaw * cosPitch, sinPitch, sinYaw * cosPitch));
@@ -54,7 +54,7 @@ void Camera::ProcessKeys(int key, int action)
     }
 }
 
-void Camera::ProcessMouse(double x, double y)
+void Camera::ProcessMouse(float x, float y)
 {
     constexpr float mouseSens = 0.1f;
 
@@ -93,6 +93,7 @@ void Camera::ProcessMouse(double x, double y)
 
 void Camera::ProcessMouseButton(int button, int action, int mods)
 {
+    (mods);
     if (button == GLFW_MOUSE_BUTTON_RIGHT) {
         m_inputState.rightButton = (action == GLFW_PRESS);
     }
