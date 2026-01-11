@@ -103,6 +103,9 @@ list(APPEND GLITTER_SOURCES
     src/glitter/util/ImGui.cpp
     src/glitter/util/ImGui.h
     src/glitter/util/Debug.h
+    src/glitter/util/Math.cpp
+    src/glitter/util/Math.h
+    
 
     # glitter gfx
     src/glitter/gfx/LinearAllocator.cpp
