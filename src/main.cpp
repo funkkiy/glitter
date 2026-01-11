@@ -1140,6 +1140,12 @@ private:
             }
         }
 
+        void PushDebugVector(glm::vec3 a, glm::vec3 b)
+        {
+            PushDebugLine(a, b);
+            PushDebugCone(b, glm::normalize(a - b), 22.5f, 1.0f);
+        }
+
         void Clear() { m_debugLines.clear(); }
     } m_debugData;
 
