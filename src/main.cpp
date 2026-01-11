@@ -1410,7 +1410,7 @@ private:
     float m_pointLightRadius {50.0f};
     float m_spotLightAngle {30.0f};
     float m_spotLightRange {50.0f};
-    Texture* m_spotLightTexture {};
+    Texture* m_spotLightTexture {nullptr};
     double m_lastTick {0.0f};
 };
 
