@@ -4,6 +4,6 @@
 
 namespace Glitter::Util::ImGui {
 
-void InstallTheme(ImVec4* colors);
+void InstallTheme(ImGuiStyle& style);
 
 } // namespace Glitter::Util::ImGui
