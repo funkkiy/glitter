@@ -80,6 +80,9 @@ set_property(TARGET spdlog PROPERTY SYSTEM TRUE)
 # glm
 add_subdirectory(vendor/glm)
 
+# unordered_dense
+add_subdirectory(vendor/unordered_dense)
+
 # place all the dependencies in a single folder
 set_target_properties(glfw PROPERTIES FOLDER "Dependencies/GLFW3")
 set_target_properties(update_mappings PROPERTIES FOLDER "Dependencies/GLFW3")
@@ -155,6 +158,9 @@ list(APPEND GLITTER_VENDOR_INCLUDES
 	
 	# livepp
 	vendor/livepp/API/x64
+
+    # unordered_dense
+    vendor/unordered_dense/include
 )
 
 list(APPEND GLITTER_PRECOMPILED_HEADERS
@@ -186,7 +192,7 @@ target_include_directories(Glitter SYSTEM PRIVATE
 target_precompile_headers(Glitter PRIVATE
     ${GLITTER_PRECOMPILED_HEADERS}
 )
-target_link_libraries(Glitter glfw spdlog glm)
+target_link_libraries(Glitter glfw spdlog glm unordered_dense::unordered_dense)
 target_compile_features(Glitter PRIVATE cxx_std_23)
 target_compile_options(Glitter PUBLIC
     ${WALL_OTHERS} ${WALL_MSVC}
