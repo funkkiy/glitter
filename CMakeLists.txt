@@ -99,11 +99,9 @@ list(APPEND GLITTER_SOURCES
     # glitter utility
     src/glitter/util/File.cpp
     src/glitter/util/File.h
-    src/glitter/util/Common.cpp
     src/glitter/util/Common.h
     src/glitter/util/ImGui.cpp
     src/glitter/util/ImGui.h
-    src/glitter/util/Debug.cpp
     src/glitter/util/Debug.h
 
     # glitter gfx
