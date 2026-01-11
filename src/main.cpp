@@ -6,6 +6,7 @@
 #include "glitter/util/Common.h"
 #include "glitter/util/Debug.h"
 #include "glitter/util/File.h"
+#include "glitter/util/Math.h"
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -743,8 +744,8 @@ private:
         // Calculate SpotLight data.
         glm::vec3 spotLightPosition = glm::vec3(0.0f);
         glm::vec3 spotLightDirection = glm::vec3(std::cosf(glfwGetTime()) * 25.0f, std::sinf(glfwGetTime()) * 25.0f, 0.0f);
-        glm::mat4 spotLightView
-            = glm::lookAt(spotLightPosition, spotLightPosition + spotLightDirection, glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 spotLightView = glm::lookAt(
+            spotLightPosition, spotLightPosition + spotLightDirection, Glitter::Math::SafeUpVector(spotLightDirection));
         glm::mat4 spotLightProjection = glm::perspective(glm::radians(m_spotLightAngle), 1.0f, 1.0f, m_spotLightRange);
         m_debugData.PushDebugCone(spotLightPosition, spotLightDirection, m_spotLightAngle, m_spotLightRange);
 
@@ -1120,10 +1121,7 @@ private:
             }
 
             // Generate a matrix that converts from "Circle Space" to "World Space".
-            glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
-            if (std::abs(glm::dot(direction, glm::vec3(0.0f, 1.0f, 0.0f))) > 0.99f) {
-                up = glm::vec3(1.0f, 0.0f, 0.0f);
-            }
+            glm::vec3 up = Glitter::Math::SafeUpVector(direction);
             glm::vec3 right = glm::normalize(glm::cross(direction, up));
             glm::vec3 forward = glm::normalize(glm::cross(right, direction));
 
