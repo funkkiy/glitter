@@ -18,6 +18,9 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include <imgui_internal.h>
+#include <imgui_stdlib.h>
+
 #include <ankerl/unordered_dense.h>
 
 #include "glitter/util/ImGui.h"
@@ -251,27 +254,32 @@ private:
 #ifdef _DEBUG
         glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
 #endif
-        m_window = glfwCreateWindow(m_windowWidth, m_windowHeight, "Glitter", nullptr, nullptr);
+        constexpr int defaultWidth = 1366;
+        constexpr int defaultHeight = 768;
+
+        m_window = glfwCreateWindow(defaultWidth, defaultHeight, "Glitter", nullptr, nullptr);
         if (!m_window) {
             return InitializeResult::GlfwWindowError;
         }
         glfwMakeContextCurrent(m_window);
 
-        // Resize the Viewport if the Window size changes.
         glfwSetWindowUserPointer(m_window, this);
-        glfwSetWindowSizeCallback(m_window, [](GLFWwindow* window, int width, int height) {
-            auto* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
 
-            if (width == 0 || height == 0) {
-                return;
-            }
-
-            app->m_windowWidth = width;
-            app->m_windowHeight = height;
-
-            app->UpdateFramebuffer(width, height);
-            glViewport(0, 0, width, height);
-        });
+        // @Info: Viewport is now resized based on the size of the `Game` ImGui Window.
+        // Resize the Viewport if the Window size changes.
+        // glfwSetWindowSizeCallback(m_window, [](GLFWwindow* window, int width, int height) {
+        //     auto* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
+        //
+        //     if (width == 0 || height == 0) {
+        //         return;
+        //     }
+        //
+        //     app->m_viewportWidth = width;
+        //     app->m_viewportHeight = height;
+        //
+        //     app->UpdateFramebuffer(width, height);
+        //     glViewport(0, 0, width, height);
+        // });
 
         glfwSetKeyCallback(m_window, [](GLFWwindow* window, int key, int /*scancode*/, int action, int /*mods*/) {
             auto* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
@@ -300,8 +308,7 @@ private:
                         auto randomTextureIt = app->m_loadedTextures.begin();
                         std::advance(randomTextureIt, std::rand() % app->m_loadedTextures.size());
 
-                        app->m_nodes.emplace_back(Node {
-                            .m_name = std::format("Node {}", app->m_nodes.size()),
+                        app->m_nodes.emplace_back(Node {.m_name = std::format("Node {}", app->m_nodes.size()),
                             .m_position = glm::sphericalRand(15.0f),
                             .m_scale = glm::vec3(0.5f),
                             .m_meshID = std::rand() % app->m_meshes.size(),
@@ -350,14 +357,20 @@ private:
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO();
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable;
 
         // Initialize Dear ImGui backend.
         ImGui_ImplGlfw_InitForOpenGL(m_window, true);
         ImGui_ImplOpenGL3_Init("#version 460");
 
+        // Load custom ImGui fonts.
+        ImGui::GetIO().Fonts->Clear();
+        ImFontConfig fontConfig {};
+        ImGui::GetIO().Fonts->AddFontFromFileTTF("fonts/TrebuchetMS.ttf", 16.0f, &fontConfig);
+        ImGui::GetIO().Fonts->Build();
+
         // Apply Dear ImGui theme.
-        Glitter::Util::ImGui::InstallTheme(ImGui::GetStyle().Colors);
+        Glitter::Util::ImGui::InstallTheme(ImGui::GetStyle());
 
         return InitializeResult::Ok;
     }
@@ -661,7 +674,8 @@ private:
                   .m_aabb = {glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 1.0f)}
             };
 
-            Node node {.m_position = glm::vec3(-15.0f, -15.0f, -15.0f),
+            Node node {.m_name = "Ground Plane",
+                .m_position = glm::vec3(-15.0f, -15.0f, -15.0f),
                 .m_scale = glm::vec3(35.0f),
                 .m_meshID = m_meshes.size(),
                 .m_uboOffset = 0,
@@ -678,7 +692,7 @@ private:
         // Load SpotLight texture.
         m_spotLightTexture = &m_loadedTextures["Empty"];
 
-        CreateFramebuffer(m_windowWidth, m_windowHeight);
+        CreateFramebuffer(m_viewportWidth, m_viewportHeight);
 
         return PrepareResult::Ok;
     }
@@ -717,7 +731,7 @@ private:
         glm::vec3 eyePos = m_currentCamera.m_position;
         glm::mat4 view = glm::lookAt(eyePos, eyePos + m_currentCamera.m_direction, m_currentCamera.m_up);
         glm::mat4 projection = glm::perspective(
-            glm::radians(45.0f), static_cast<float>(m_windowWidth) / static_cast<float>(m_windowHeight), 1.0f, 200.0f);
+            glm::radians(45.0f), static_cast<float>(m_viewportWidth) / static_cast<float>(m_viewportHeight), 1.0f, 200.0f);
         m_currentView = view;
         m_currentProjection = projection;
 
@@ -755,7 +769,8 @@ private:
 
         // Calculate SpotLight data.
         glm::vec3 spotLightPosition = glm::vec3(0.0f);
-        glm::vec3 spotLightDirection = glm::vec3(std::cosf(glfwGetTime()) * 25.0f, std::sinf(glfwGetTime()) * 25.0f, 0.0f);
+        glm::vec3 spotLightDirection = glm::vec3(
+            std::cosf(static_cast<float>(glfwGetTime())) * 25.0f, std::sinf(static_cast<float>(glfwGetTime())) * 25.0f, 0.0f);
         glm::mat4 spotLightView = glm::lookAt(
             spotLightPosition, spotLightPosition + spotLightDirection, Glitter::Math::SafeUpVector(spotLightDirection));
         glm::mat4 spotLightProjection = glm::perspective(glm::radians(m_spotLightAngle), 1.0f, 1.0f, m_spotLightRange);
@@ -800,6 +815,9 @@ private:
                 // Obtain the AABB's scaled and translated transform.
                 auto aabbTransform = glm::mat4(1.0f);
                 aabbTransform = glm::translate(aabbTransform, node.m_position);
+                aabbTransform = glm::rotate(aabbTransform, glm::radians(node.m_rotationAngles.x), glm::vec3(1.0f, 0.0f, 0.0f));
+                aabbTransform = glm::rotate(aabbTransform, glm::radians(node.m_rotationAngles.y), glm::vec3(0.0f, 1.0f, 0.0f));
+                aabbTransform = glm::rotate(aabbTransform, glm::radians(node.m_rotationAngles.z), glm::vec3(0.0f, 0.0f, 1.0f));
                 aabbTransform = glm::scale(aabbTransform, node.m_scale);
 
                 AABB aabb = m_meshes[node.m_meshID].m_aabb;
@@ -872,39 +890,14 @@ private:
             // order.
             auto model = glm::mat4(1.0f);
             model = glm::translate(model, node.m_position);
+            model = glm::rotate(model, glm::radians(node.m_rotationAngles.x), glm::vec3(1.0f, 0.0f, 0.0f));
+            model = glm::rotate(model, glm::radians(node.m_rotationAngles.y), glm::vec3(0.0f, 1.0f, 0.0f));
+            model = glm::rotate(model, glm::radians(node.m_rotationAngles.z), glm::vec3(0.0f, 0.0f, 1.0f));
             model = glm::scale(model, node.m_scale);
 
             PerDrawData shaderData {.m_model = model, .m_opacity = glm::vec4(node.m_opacity)};
             node.m_uboOffset = m_uboAllocator.Push(shaderData);
         }
-
-        // Add Debug UI.
-        ImGui::Begin("Glitter Debug");
-        if (ImGui::CollapsingHeader("Performance", ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Checkbox("Frustum Culling", &m_frustumCulling);
-            ImGui::Text("Culled Nodes: %d/%zu (%.2f%%)", numCulledNodes, m_nodes.size(),
-                !m_nodes.empty() ? static_cast<float>(numCulledNodes) / static_cast<float>(m_nodes.size()) * 100.0f : 0.0f);
-            if (ImGui::Button("Clear Nodes", ImVec2(-1.0f, 0.0f))) {
-                m_nodes.clear();
-            }
-        }
-        if (ImGui::CollapsingHeader("Debug View", ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Checkbox("Debug Lines", &m_debugLines);
-            ImGui::SameLine();
-            ImGui::Checkbox("Draw AABBs", &m_drawAABBs);
-        }
-        ImGui::SeparatorText("Scene Properties");
-        ImGui::SliderFloat("Scene Gamma", &m_sceneGamma, 0.0f, 5.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
-        ImGui::SliderFloat("Point Light Radius", &m_pointLightRadius, 0.0f, 100.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
-        ImGui::SliderFloat("Spot Light Angle", &m_spotLightAngle, 0.0f, 90.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
-        ImGui::SliderFloat("Spot Light Range", &m_spotLightRange, 0.0f, 100.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
-        ImGui::End();
-
-        ImGui::Begin("Glitter Framebuffers");
-        if (ImGui::CollapsingHeader("Main FB", ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Image(m_fboColor, ImGui::GetWindowSize(), ImVec2(0, 1), ImVec2(1, 0));
-        }
-        ImGui::End();
 
         // Upload the CPU-backing buffer into the UBO.
         glNamedBufferSubData(m_mainUBO, 0, static_cast<GLsizeiptr>(sizeof(uint8_t) * m_uboAllocator.Size()), m_uboAllocator.Data());
@@ -1003,6 +996,8 @@ private:
         {
             GL_DEBUG_SCOPE("Post-Processing");
 
+            glBindFramebuffer(GL_FRAMEBUFFER, *m_fbo);
+
             glUseProgram(m_ppfxProgram);
 
             // uniform layout(location = 0) sampler2D u_ColorTexture;
@@ -1011,12 +1006,16 @@ private:
             glUniform1f(1, m_sceneGamma);
 
             glDrawArrays(GL_TRIANGLES, 0, 3);
+
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
 
         // Render Debug.
         if (m_debugLines && !m_debugData.m_debugLines.empty()) {
             {
                 GL_DEBUG_SCOPE("Debug");
+
+                glBindFramebuffer(GL_FRAMEBUFFER, *m_fbo);
 
                 glDepthFunc(GL_ALWAYS);
 
@@ -1041,6 +1040,162 @@ private:
                 glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(m_debugData.m_debugLines.size()));
 
                 glDepthFunc(GL_LEQUAL);
+
+                glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            }
+        }
+
+        // Add UI.
+        {
+            // Default Layout.
+            auto buildDockingLayout = [&](ImGuiID dockspaceId, ImGuiViewport* viewport) {
+                ImGui::DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags_DockSpace);
+                ImGui::DockBuilderSetNodeSize(dockspaceId, viewport->Size);
+                ImGuiID dockMainId = dockspaceId;
+                ImGuiID dockRightId = ImGui::DockBuilderSplitNode(dockMainId, ImGuiDir_Right, 0.25f, nullptr, &dockMainId);
+                ImGuiID dockRightTopId = ImGui::DockBuilderSplitNode(dockRightId, ImGuiDir_Up, 0.5f, nullptr, &dockRightId);
+                ImGuiID dockBottomId = ImGui::DockBuilderSplitNode(dockMainId, ImGuiDir_Down, 0.2f, nullptr, &dockMainId);
+                ImGui::DockBuilderDockWindow("Game", dockMainId);
+                ImGui::DockBuilderDockWindow("Explorer", dockRightTopId);
+                ImGui::DockBuilderDockWindow("Properties", dockRightId);
+                ImGui::DockBuilderDockWindow("Glitter Debug", dockBottomId);
+                ImGui::DockBuilderDockWindow("Glitter Framebuffers", dockMainId);
+                ImGui::DockBuilderFinish(dockspaceId);
+            };
+
+            ImGuiID dockspaceId = ImGui::GetID("MainDockspace");
+            ImGuiViewport* viewport = ImGui::GetMainViewport();
+
+            if (ImGui::DockBuilderGetNode(dockspaceId) == nullptr) {
+                buildDockingLayout(dockspaceId, viewport);
+            }
+            ImGui::DockSpaceOverViewport(dockspaceId, viewport, ImGuiDockNodeFlags_None);
+
+            // Add Top Bar.
+            ImGui::BeginMainMenuBar();
+            if (ImGui::BeginMenu("File")) {
+                if (ImGui::MenuItem("Exit")) {
+                    glfwSetWindowShouldClose(m_window, GLFW_TRUE);
+                }
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("View")) {
+                ImGui::MenuItem("Framebuffers", nullptr, &m_viewFramebuffers);
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Window")) {
+                if (ImGui::MenuItem("Reset Docking Layout")) {
+                    ImGui::DockBuilderRemoveNode(dockspaceId);
+                    buildDockingLayout(dockspaceId, viewport);
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::EndMainMenuBar();
+        }
+
+        {
+            ImGui::Begin("Glitter Debug");
+            if (ImGui::CollapsingHeader("Performance", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::Checkbox("Frustum Culling", &m_frustumCulling);
+                ImGui::Text("Culled Nodes: %d/%zu (%.2f%%)", numCulledNodes, m_nodes.size(),
+                    !m_nodes.empty() ? static_cast<float>(numCulledNodes) / static_cast<float>(m_nodes.size()) * 100.0f : 0.0f);
+                if (ImGui::Button("Clear Nodes", ImVec2(-1.0f, 0.0f))) {
+                    m_nodes.clear();
+                }
+            }
+            if (ImGui::CollapsingHeader("Debug View", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::Checkbox("Debug Lines", &m_debugLines);
+                ImGui::SameLine();
+                ImGui::Checkbox("Draw AABBs", &m_drawAABBs);
+            }
+            if (ImGui::CollapsingHeader("Scene Properties", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::SliderFloat("Scene Gamma", &m_sceneGamma, 0.0f, 5.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+                ImGui::SeparatorText("Light Properties");
+                ImGui::SliderFloat("Point Light Radius", &m_pointLightRadius, 0.0f, 100.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+                ImGui::SliderFloat("Spot Light Angle", &m_spotLightAngle, 0.0f, 90.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+                ImGui::SliderFloat("Spot Light Range", &m_spotLightRange, 0.0f, 100.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+                if (ImGui::BeginCombo("Spot Light Texture", m_spotLightTexture->m_name)) {
+                    for (auto& [name, texture] : m_loadedTextures) {
+                        bool isSelected = (m_spotLightTexture->m_name == name);
+                        if (ImGui::Selectable(name.c_str(), isSelected)) {
+                            m_spotLightTexture = &texture;
+                        }
+                        if (isSelected) {
+                            ImGui::SetItemDefaultFocus();
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+            }
+            ImGui::End();
+        }
+
+        {
+            ImGui::Begin("Game", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove);
+            int windowWidth = static_cast<int>(ImGui::GetContentRegionAvail().x);
+            int windowHeight = static_cast<int>(ImGui::GetContentRegionAvail().y);
+            if (windowWidth != m_viewportWidth || windowHeight != m_viewportHeight) {
+                m_viewportWidth = windowWidth;
+                m_viewportHeight = windowHeight;
+                UpdateFramebuffer(m_viewportWidth, m_viewportHeight);
+                glViewport(0, 0, m_viewportWidth, m_viewportHeight);
+            }
+            ImGui::Image(m_fboColor, ImVec2(static_cast<float>(m_viewportWidth), static_cast<float>(m_viewportHeight)),
+                ImVec2(0.0f, 1.0f), ImVec2(1.0f, 0.0f));
+            ImGui::End();
+        }
+
+        {
+            ImGui::Begin("Explorer");
+            static std::optional<size_t> nodeId {};
+            for (size_t i = 0; i < m_nodes.size(); i++) {
+                Node& node = m_nodes[i];
+                if (ImGui::Selectable(std::format("{}##{}", node.m_name, i).c_str(), nodeId == i)) {
+                    nodeId = i;
+                }
+            }
+            ImGui::End();
+
+            ImGui::Begin("Properties");
+            if (nodeId) {
+                Node* selectedNode = &m_nodes[*nodeId];
+
+                ImGui::SeparatorText("Instance");
+                ImGui::InputText("Name", &selectedNode->m_name);
+
+                ImGui::SeparatorText("Transform");
+                ImGui::InputFloat3("Position", &selectedNode->m_position.x);
+                ImGui::SliderFloat3(
+                    "Rotation", &selectedNode->m_rotationAngles.x, 0.0f, 360.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+                ImGui::InputFloat3("Scale", &selectedNode->m_scale.x);
+
+                ImGui::SeparatorText("Rendering");
+                if (ImGui::BeginCombo("Texture", selectedNode->m_texture->m_name)) {
+                    for (auto& [name, texture] : m_loadedTextures) {
+                        bool isSelected = (selectedNode->m_texture->m_name == name);
+                        if (ImGui::Selectable(name.c_str(), isSelected)) {
+                            selectedNode->m_texture = &texture;
+                        }
+                        if (isSelected) {
+                            ImGui::SetItemDefaultFocus();
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+                ImGui::SliderFloat("Opacity", &selectedNode->m_opacity, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+                ImGui::Checkbox("Uncullable", &selectedNode->m_neverCull);
+            }
+            ImGui::End();
+        }
+
+        {
+            if (m_viewFramebuffers) {
+                ImGui::Begin("Glitter Framebuffers");
+                if (ImGui::CollapsingHeader("Main FB", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    ImGui::Image(m_fboColor, ImGui::GetWindowSize(), ImVec2(0, 1), ImVec2(1, 0));
+                }
+                ImGui::End();
             }
         }
 
@@ -1163,8 +1318,8 @@ private:
         void Clear() { m_debugLines.clear(); }
     } m_debugData;
 
-    int m_windowWidth {1366};
-    int m_windowHeight {768};
+    int m_viewportWidth {1366};
+    int m_viewportHeight {768};
 
     glm::mat4 m_currentView {};
     glm::mat4 m_currentProjection {};
@@ -1225,13 +1380,16 @@ private:
     ankerl::unordered_dense::segmented_map<std::string, Texture> m_loadedTextures;
 
     struct Node {
+        std::string m_name;
+
         glm::vec3 m_position;
+        glm::vec3 m_rotationAngles;
         glm::vec3 m_scale;
 
         size_t m_meshID;
         size_t m_uboOffset;
 
-        // @todo: What happens when a `Texture` is removed?
+        // @Todo: What happens when a `Texture` is removed?
         Texture* m_texture;
         float m_opacity;
 
@@ -1244,8 +1402,9 @@ private:
     std::vector<Mesh> m_meshes;
 
     bool m_frustumCulling {true};
-    bool m_debugLines {true};
+    bool m_debugLines {false};
     bool m_drawAABBs {false};
+    bool m_viewFramebuffers {false};
 
     float m_sceneGamma {1.0f};
     float m_pointLightRadius {50.0f};
