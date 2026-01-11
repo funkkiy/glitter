@@ -328,7 +328,7 @@ private:
         glfwSetInputMode(m_window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
         glfwSetCursorPosCallback(m_window, [](GLFWwindow* window, double x, double y) {
             auto* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
-            app->m_currentCamera.ProcessMouse(x, y);
+            app->m_currentCamera.ProcessMouse(static_cast<float>(x), static_cast<float>(y));
         });
 
         glfwSetMouseButtonCallback(m_window, [](GLFWwindow* window, int button, int action, int mods) {
