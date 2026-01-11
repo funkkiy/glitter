@@ -18,6 +18,7 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include <ankerl/unordered_dense.h>
 
 #include "glitter/util/ImGui.h"
 
