@@ -296,11 +296,16 @@ private:
                     }
 
                     for (size_t i = 0; i < nodesPerPress; i++) {
-                        app->m_nodes.push_back(Node {.m_position = glm::sphericalRand(15.0f),
+                        auto randomTextureIt = app->m_loadedTextures.begin();
+                        std::advance(randomTextureIt, std::rand() % app->m_loadedTextures.size());
+
+                        app->m_nodes.emplace_back(Node {
+                            .m_name = std::format("Node {}", app->m_nodes.size()),
+                            .m_position = glm::sphericalRand(15.0f),
                             .m_scale = glm::vec3(0.5f),
                             .m_meshID = std::rand() % app->m_meshes.size(),
                             .m_uboOffset = 0,
-                            .m_texture = app->m_loadedTextures[std::rand() % app->m_loadedTextures.size()],
+                            .m_texture = &randomTextureIt->second,
                             .m_opacity = 1.0f,
                             .m_shouldAnimate = true,
                             .m_culled = false});
@@ -597,26 +602,32 @@ private:
         }
 
         // Load some Node textures.
-        std::array texturePaths(std::to_array<const char*>({"textures/Froge.png", "textures/Tile.png"}));
+        std::array textures(std::to_array<Texture>({
+            {"Froge", "textures/Froge.png", 0},
+            {"Tile",  "textures/Tile.png",  0},
+            {"Empty", "textures/Empty.png", 0}
+        }));
 
-        for (auto& path : texturePaths) {
+        for (auto& textureDecl : textures) {
             GLuint texture {};
             glCreateTextures(GL_TEXTURE_2D, 1, &texture);
             glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_REPEAT);
             glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_REPEAT);
             glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glObjectLabel(GL_TEXTURE, texture, -1, std::format("Texture <{}>", path).c_str());
+            glObjectLabel(GL_TEXTURE, texture, -1, std::format("Texture <{}>", textureDecl.m_name).c_str());
 
             int width = 0, height = 0, nChannels = 0;
-            unsigned char* textureData = stbi_load(path, &width, &height, &nChannels, 4);
+            unsigned char* textureData = stbi_load(textureDecl.m_path, &width, &height, &nChannels, 4);
             if (textureData) {
                 glTextureStorage2D(texture, 1, GL_RGBA8, width, height);
                 glTextureSubImage2D(texture, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, textureData);
                 glGenerateTextureMipmap(texture);
             }
             stbi_image_free(textureData);
-            m_loadedTextures.push_back(texture);
+
+            textureDecl.m_id = texture;
+            m_loadedTextures[textureDecl.m_name] = textureDecl;
         }
 
         // Create ground plane.
@@ -653,7 +664,7 @@ private:
                 .m_scale = glm::vec3(35.0f),
                 .m_meshID = m_meshes.size(),
                 .m_uboOffset = 0,
-                .m_texture = m_loadedTextures[0],
+                .m_texture = &m_loadedTextures["Froge"],
                 .m_opacity = 1.0f,
                 .m_shouldAnimate = false,
                 .m_culled = false,
@@ -664,7 +675,7 @@ private:
         }
 
         // Load SpotLight texture.
-        m_spotLightTexture = m_loadedTextures[0];
+        m_spotLightTexture = &m_loadedTextures["Empty"];
 
         CreateFramebuffer(m_windowWidth, m_windowHeight);
 
@@ -950,10 +961,10 @@ private:
                         GL_UNIFORM_BUFFER, 1, m_mainUBO, static_cast<GLintptr>(node->m_uboOffset), sizeof(PerDrawData));
 
                     // Bind the texture.
-                    glBindTextureUnit(0, node->m_texture);
+                    glBindTextureUnit(0, node->m_texture->m_id);
 
                     // Bind the SpotLight texture.
-                    glBindTextureUnit(1, m_spotLightTexture);
+                    glBindTextureUnit(1, m_spotLightTexture->m_id);
 
                     // Draw the Primitive!
                     glDrawElements(GL_TRIANGLES, primitive.m_elementCount, GL_UNSIGNED_INT, nullptr);
@@ -1066,7 +1077,9 @@ private:
         glDeleteTextures(1, &m_fboColor);
         glDeleteRenderbuffers(1, &m_fboDepth);
 
-        glDeleteTextures(narrow_into<GLsizei>(m_loadedTextures.size()), m_loadedTextures.data());
+        for (auto& [name, texture] : m_loadedTextures) {
+            glDeleteTextures(1, &texture.m_id);
+        }
 
         // Shutdown GLFW.
         glfwTerminate();
@@ -1194,7 +1207,21 @@ private:
     };
     Glitter::Gfx::LinearAllocator m_uboAllocator;
 
-    std::vector<GLuint> m_loadedTextures;
+    struct Texture {
+        const char* m_name;
+        const char* m_path;
+        GLuint m_id;
+
+        Texture(const char* name = 0, const char* path = 0, GLuint id = 0)
+            : m_name(name)
+            , m_path(path)
+            , m_id(id)
+        {
+        }
+    };
+
+    // A `segmented_map` is required due to reference stability when loading new Textures.
+    ankerl::unordered_dense::segmented_map<std::string, Texture> m_loadedTextures;
 
     struct Node {
         glm::vec3 m_position;
@@ -1203,7 +1230,8 @@ private:
         size_t m_meshID;
         size_t m_uboOffset;
 
-        GLuint m_texture;
+        // @todo: What happens when a `Texture` is removed?
+        Texture* m_texture;
         float m_opacity;
 
         bool m_shouldAnimate;
@@ -1222,7 +1250,7 @@ private:
     float m_pointLightRadius {50.0f};
     float m_spotLightAngle {30.0f};
     float m_spotLightRange {50.0f};
-    GLuint m_spotLightTexture {};
+    Texture* m_spotLightTexture {};
     double m_lastTick {0.0f};
 };
 
