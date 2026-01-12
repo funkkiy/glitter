@@ -1225,12 +1225,21 @@ private:
         {
             if (m_viewFramebuffers) {
                 ImGui::Begin("Glitter Framebuffers");
-                if (ImGui::CollapsingHeader("Main FB", ImGuiTreeNodeFlags_DefaultOpen)) {
-                    ImGui::Image(m_framebuffers[MainFB].m_color, ImGui::GetWindowSize(), ImVec2(0, 1), ImVec2(1, 0));
+                static Framebuffer* selectedFb = &m_framebuffers[MainFB];
+                if (ImGui::BeginCombo("Framebuffer", selectedFb->m_name)) {
+                    for (auto& fb : m_framebuffers) {
+                        bool isSelected = (selectedFb == &fb);
+                        if (ImGui::Selectable(fb.m_name, isSelected)) {
+                            selectedFb = &fb;
+                        }
+                        if (isSelected) {
+                            ImGui::SetItemDefaultFocus();
+                        }
+                    }
+                    ImGui::EndCombo();
                 }
-                if (ImGui::CollapsingHeader("Post-Processing FB", ImGuiTreeNodeFlags_DefaultOpen)) {
-                    ImGui::Image(m_framebuffers[PostProcessingFB].m_color, ImGui::GetWindowSize(), ImVec2(0, 1), ImVec2(1, 0));
-                }
+
+                ImGui::Image(selectedFb->m_color, ImGui::GetContentRegionAvail(), ImVec2(0.0f, 1.0f), ImVec2(1.0f, 0.0f));
                 ImGui::End();
             }
         }
