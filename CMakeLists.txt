@@ -112,8 +112,6 @@ list(APPEND GLITTER_SOURCES
     src/glitter/gfx/LinearAllocator.h
     src/glitter/gfx/VAO.cpp
     src/glitter/gfx/VAO.h
-    src/glitter/gfx/Framebuffer.cpp
-    src/glitter/gfx/Framebuffer.h
 
     # glitter systems
     src/glitter/systems/Camera.cpp

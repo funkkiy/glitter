@@ -1,6 +1,5 @@
 #include "glitter/Config.h"
 #include "glitter/ImGuiConfig.h"
-#include "glitter/gfx/Framebuffer.h"
 #include "glitter/gfx/LinearAllocator.h"
 #include "glitter/gfx/VAO.h"
 #include "glitter/systems/Camera.h"
@@ -34,7 +33,6 @@
 #include <vector>
 
 #include <cmath>
-#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <ctime>
@@ -197,13 +195,45 @@ public:
     }
 
 private:
-    std::array<Gfx::Framebuffer, +Gfx::FramebufferType::Count> m_framebuffers {
-        {
-         Gfx::Framebuffer("Main FBO"),
-         Gfx::Framebuffer("Post Processing FBO"),
-         Gfx::Framebuffer("Debug FBO"),
-         }
-    };
+    void CreateFramebuffer(GLsizei width, GLsizei height)
+    {
+        // Create new FBO.
+        if (!m_fbo) {
+            GLuint fbo = 0;
+            glCreateFramebuffers(1, &fbo);
+            m_fbo = fbo;
+        }
+
+        // Create the color texture used with the FBO.
+        GLuint fboColor = 0;
+        glCreateTextures(GL_TEXTURE_2D, 1, &fboColor);
+        glTextureStorage2D(fboColor, 1, GL_RGBA8, width, height);
+        glObjectLabel(GL_TEXTURE, fboColor, -1, "Post-Processing FBO Color Texture");
+
+        // Create the depth renderbuffer (note: can't be sampled) used with the FBO.
+        GLuint fboDepth = 0;
+        glCreateRenderbuffers(1, &fboDepth);
+        glNamedRenderbufferStorage(fboDepth, GL_DEPTH_COMPONENT24, width, height);
+        glObjectLabel(GL_RENDERBUFFER, fboDepth, -1, "Post-Processing FBO Depth Renderbuffer");
+
+        // Attach the textures to the FBO.
+        glNamedFramebufferTexture(*m_fbo, GL_COLOR_ATTACHMENT0, fboColor, 0);
+        glNamedFramebufferRenderbuffer(*m_fbo, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, fboDepth);
+
+        m_fboColor = fboColor;
+        m_fboDepth = fboDepth;
+    }
+
+    void UpdateFramebuffer(GLsizei width, GLsizei height)
+    {
+        GLuint oldColor = m_fboColor;
+        GLuint oldDepth = m_fboDepth;
+
+        CreateFramebuffer(width, height);
+
+        glDeleteTextures(1, &oldColor);
+        glDeleteRenderbuffers(1, &oldDepth);
+    }
 
     enum class [[nodiscard]] InitializeResult : std::uint8_t {
         Ok,
@@ -662,10 +692,7 @@ private:
         // Load SpotLight texture.
         m_spotLightTexture = &m_loadedTextures["Empty"];
 
-        // Create Framebuffers.
-        for (auto& framebuffer : m_framebuffers) {
-            CreateFramebuffer(framebuffer, m_viewportWidth, m_viewportHeight);
-        }
+        CreateFramebuffer(m_viewportWidth, m_viewportHeight);
 
         return PrepareResult::Ok;
     }
@@ -693,10 +720,6 @@ private:
 
     void Render()
     {
-        // Note: glClear() respects depth-write, therefore depth-write must be enabled to clear the depth buffer.
-        glDepthMask(GL_TRUE);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
         // Clear the UBO CPU-backing buffer.
         m_uboAllocator.Clear();
 
@@ -942,7 +965,7 @@ private:
         {
             GL_DEBUG_SCOPE("Main FB Draw");
 
-            glBindFramebuffer(GL_FRAMEBUFFER, *m_framebuffers[+Gfx::FramebufferType::Main].m_fbo);
+            glBindFramebuffer(GL_FRAMEBUFFER, *m_fbo);
 
             // The FBO needs its own independent clear.
             glEnable(GL_DEPTH_TEST);
@@ -965,6 +988,7 @@ private:
                 glDepthMask(GL_FALSE);
                 renderNodes(transparentNodes);
             }
+
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
 
@@ -972,17 +996,16 @@ private:
         {
             GL_DEBUG_SCOPE("Post-Processing");
 
-            glBindFramebuffer(GL_FRAMEBUFFER, *m_framebuffers[+Gfx::FramebufferType::Ppfx].m_fbo);
-
             glDisable(GL_DEPTH_TEST);
             glDepthMask(GL_FALSE);
-            glClear(GL_COLOR_BUFFER_BIT);
+
+            glBindFramebuffer(GL_FRAMEBUFFER, *m_fbo);
 
             glUseProgram(m_ppfxProgram);
 
             // uniform layout(location = 0) sampler2D u_ColorTexture;
             // uniform layout(location = 1) float u_Gamma;
-            glBindTextureUnit(0, m_framebuffers[+Gfx::FramebufferType::Main].m_color);
+            glBindTextureUnit(0, m_fboColor);
             glUniform1f(1, m_sceneGamma);
 
             glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -991,25 +1014,14 @@ private:
         }
 
         // Render Debug.
-        {
-            GL_DEBUG_SCOPE("Debug");
+        if (m_debugLines && !m_debugData.m_debugLines.empty()) {
+            {
+                GL_DEBUG_SCOPE("Debug");
 
-            glBindFramebuffer(GL_FRAMEBUFFER, *m_framebuffers[+Gfx::FramebufferType::Debug].m_fbo);
+                glBindFramebuffer(GL_FRAMEBUFFER, *m_fbo);
 
-            glBlitNamedFramebuffer(*m_framebuffers[+Gfx::FramebufferType::Ppfx].m_fbo,
-                *m_framebuffers[+Gfx::FramebufferType::Debug].m_fbo, 0, 0,
-                m_viewportWidth,
-                m_viewportHeight, 0, 0, m_viewportWidth, m_viewportHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-            glBlitNamedFramebuffer(*m_framebuffers[+Gfx::FramebufferType::Main].m_fbo,
-                *m_framebuffers[+Gfx::FramebufferType::Debug].m_fbo, 0, 0,
-                m_viewportWidth,
-                m_viewportHeight, 0, 0, m_viewportWidth, m_viewportHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
-
-            if (m_debugLines && !m_debugData.m_debugLines.empty()) {
-                glEnable(GL_DEPTH_TEST);
-                glDepthFunc(GL_LEQUAL);
-                glDepthMask(GL_TRUE);
-                glClear(GL_DEPTH_BUFFER_BIT);
+                glDisable(GL_DEPTH_TEST);
+                glDepthMask(GL_FALSE);
 
                 // Bind the Program and VAO.
                 glUseProgram(m_debugProgram);
@@ -1030,9 +1042,9 @@ private:
 
                 // Draw the Primitive!
                 glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(m_debugData.m_debugLines.size()));
-            }
 
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            }
         }
 
         // Add UI.
@@ -1125,21 +1137,14 @@ private:
             ImGui::Begin("Game", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove);
             int windowWidth = static_cast<int>(ImGui::GetContentRegionAvail().x);
             int windowHeight = static_cast<int>(ImGui::GetContentRegionAvail().y);
-
             if (windowWidth != m_viewportWidth || windowHeight != m_viewportHeight) {
                 m_viewportWidth = windowWidth;
                 m_viewportHeight = windowHeight;
-
-                for (auto& framebuffer : m_framebuffers) {
-                    UpdateFramebuffer(framebuffer, m_viewportWidth, m_viewportHeight);
-                }
-
+                UpdateFramebuffer(m_viewportWidth, m_viewportHeight);
                 glViewport(0, 0, m_viewportWidth, m_viewportHeight);
             }
-
-            ImGui::Image(m_framebuffers[+Gfx::FramebufferType::Debug].m_color,
-                ImVec2(static_cast<float>(m_viewportWidth), static_cast<float>(m_viewportHeight)), ImVec2(0.0f, 1.0f),
-                ImVec2(1.0f, 0.0f));
+            ImGui::Image(m_fboColor, ImVec2(static_cast<float>(m_viewportWidth), static_cast<float>(m_viewportHeight)),
+                ImVec2(0.0f, 1.0f), ImVec2(1.0f, 0.0f));
             ImGui::End();
         }
 
@@ -1189,21 +1194,9 @@ private:
         {
             if (m_viewFramebuffers) {
                 ImGui::Begin("Glitter Framebuffers");
-                static Gfx::Framebuffer* selectedFb = &m_framebuffers[+Gfx::FramebufferType::Main];
-                if (ImGui::BeginCombo("Framebuffer", selectedFb->m_name)) {
-                    for (auto& fb : m_framebuffers) {
-                        bool isSelected = (selectedFb == &fb);
-                        if (ImGui::Selectable(fb.m_name, isSelected)) {
-                            selectedFb = &fb;
-                        }
-                        if (isSelected) {
-                            ImGui::SetItemDefaultFocus();
-                        }
-                    }
-                    ImGui::EndCombo();
+                if (ImGui::CollapsingHeader("Main FB", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    ImGui::Image(m_fboColor, ImGui::GetWindowSize(), ImVec2(0, 1), ImVec2(1, 0));
                 }
-
-                ImGui::Image(selectedFb->m_color, ImGui::GetContentRegionAvail(), ImVec2(0.0f, 1.0f), ImVec2(1.0f, 0.0f));
                 ImGui::End();
             }
         }
@@ -1238,11 +1231,9 @@ private:
 
         glDeleteProgram(m_ppfxProgram);
 
-        for (auto& framebuffer : m_framebuffers) {
-            glDeleteFramebuffers(1, &(*framebuffer.m_fbo));
-            glDeleteTextures(1, &framebuffer.m_color);
-            glDeleteRenderbuffers(1, &framebuffer.m_depth);
-        }
+        glDeleteFramebuffers(1, &(*m_fbo));
+        glDeleteTextures(1, &m_fboColor);
+        glDeleteRenderbuffers(1, &m_fboDepth);
 
         for (auto& [name, texture] : m_loadedTextures) {
             glDeleteTextures(1, &texture.m_id);
@@ -1262,6 +1253,10 @@ private:
     GLuint m_debugVAO {};
 
     GLuint m_ppfxProgram {};
+
+    std::optional<GLuint> m_fbo {};
+    GLuint m_fboColor {};
+    GLuint m_fboDepth {};
 
     struct DebugVertex {
         float x, y, z;
