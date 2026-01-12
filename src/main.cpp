@@ -33,6 +33,7 @@
 #include <vector>
 
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <ctime>
@@ -67,6 +68,38 @@ struct MeshVertex {
     float x, y, z;
     float u, v;
     float nx, ny, nz;
+};
+
+enum class Fb : std::uint8_t {
+    Main,
+    Ppfx,
+    Debug,
+    Count,
+};
+
+constexpr std::size_t operator+(Fb type) { return static_cast<std::size_t>(type); }
+
+struct Framebuffer {
+    const char* m_name;
+    std::optional<GLuint> m_fbo;
+    GLuint m_color;
+    GLuint m_depth;
+
+    Framebuffer()
+        : m_name("Unnamed FBO")
+        , m_fbo(std::nullopt)
+        , m_color(0)
+        , m_depth(0)
+    {
+    }
+
+    Framebuffer(const char* name)
+        : m_name(name)
+        , m_fbo(std::nullopt)
+        , m_color(0)
+        , m_depth(0)
+    {
+    }
 };
 
 [[nodiscard]] std::optional<GLuint> CreateShader(GLenum type, const char* src)
@@ -195,27 +228,12 @@ public:
     }
 
 private:
-    struct Framebuffer {
-        const char* m_name;
-        std::optional<GLuint> m_fbo;
-        GLuint m_color;
-        GLuint m_depth;
-
-        Framebuffer()
-            : m_name("Unnamed FBO")
-            , m_fbo(std::nullopt)
-            , m_color(0)
-            , m_depth(0)
+    std::array<Framebuffer, +Fb::Count> m_framebuffers {
         {
-        }
-
-        Framebuffer(const char* name)
-            : m_name(name)
-            , m_fbo(std::nullopt)
-            , m_color(0)
-            , m_depth(0)
-        {
-        }
+         Framebuffer("Main FBO"),
+         Framebuffer("Post Processing FBO"),
+         Framebuffer("Debug FBO"),
+         }
     };
 
     void CreateFramebuffer(Framebuffer& fb, GLsizei width, GLsizei height)
@@ -995,7 +1013,8 @@ private:
         {
             GL_DEBUG_SCOPE("Main FB Draw");
 
-            glBindFramebuffer(GL_FRAMEBUFFER, *m_framebuffers[MainFB].m_fbo);
+            glBindFramebuffer(GL_FRAMEBUFFER, *m_framebuffers[+Fb::Main].m_fbo);
+
             // The FBO needs its own independent clear.
             glEnable(GL_DEPTH_TEST);
             glDepthFunc(GL_LEQUAL);
@@ -1024,7 +1043,7 @@ private:
         {
             GL_DEBUG_SCOPE("Post-Processing");
 
-            glBindFramebuffer(GL_FRAMEBUFFER, *m_framebuffers[PostProcessingFB].m_fbo);
+            glBindFramebuffer(GL_FRAMEBUFFER, *m_framebuffers[+Fb::Ppfx].m_fbo);
 
             glDisable(GL_DEPTH_TEST);
             glDepthMask(GL_FALSE);
@@ -1034,7 +1053,7 @@ private:
 
             // uniform layout(location = 0) sampler2D u_ColorTexture;
             // uniform layout(location = 1) float u_Gamma;
-            glBindTextureUnit(0, m_framebuffers[MainFB].m_color);
+            glBindTextureUnit(0, m_framebuffers[+Fb::Main].m_color);
             glUniform1f(1, m_sceneGamma);
 
             glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -1043,11 +1062,21 @@ private:
         }
 
         // Render Debug.
-        if (m_debugLines && !m_debugData.m_debugLines.empty()) {
-            {
-                GL_DEBUG_SCOPE("Debug");
+        {
+            GL_DEBUG_SCOPE("Debug");
 
-                glBindFramebuffer(GL_FRAMEBUFFER, *m_framebuffers[PostProcessingFB].m_fbo);
+            glBindFramebuffer(GL_FRAMEBUFFER, *m_framebuffers[+Fb::Debug].m_fbo);
+
+            glBlitNamedFramebuffer(*m_framebuffers[+Fb::Ppfx].m_fbo, *m_framebuffers[+Fb::Debug].m_fbo, 0, 0, m_viewportWidth,
+                m_viewportHeight, 0, 0, m_viewportWidth, m_viewportHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+            glBlitNamedFramebuffer(*m_framebuffers[+Fb::Main].m_fbo, *m_framebuffers[+Fb::Debug].m_fbo, 0, 0, m_viewportWidth,
+                m_viewportHeight, 0, 0, m_viewportWidth, m_viewportHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+
+            if (m_debugLines && !m_debugData.m_debugLines.empty()) {
+                glEnable(GL_DEPTH_TEST);
+                glDepthFunc(GL_LEQUAL);
+                glDepthMask(GL_TRUE);
+                glClear(GL_DEPTH_BUFFER_BIT);
 
                 // Bind the Program and VAO.
                 glUseProgram(m_debugProgram);
@@ -1068,9 +1097,9 @@ private:
 
                 // Draw the Primitive!
                 glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(m_debugData.m_debugLines.size()));
-
-                glBindFramebuffer(GL_FRAMEBUFFER, 0);
             }
+
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
 
         // Add UI.
@@ -1163,6 +1192,7 @@ private:
             ImGui::Begin("Game", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove);
             int windowWidth = static_cast<int>(ImGui::GetContentRegionAvail().x);
             int windowHeight = static_cast<int>(ImGui::GetContentRegionAvail().y);
+
             if (windowWidth != m_viewportWidth || windowHeight != m_viewportHeight) {
                 m_viewportWidth = windowWidth;
                 m_viewportHeight = windowHeight;
@@ -1173,7 +1203,8 @@ private:
 
                 glViewport(0, 0, m_viewportWidth, m_viewportHeight);
             }
-            ImGui::Image(m_framebuffers[PostProcessingFB].m_color,
+
+            ImGui::Image(m_framebuffers[+Fb::Debug].m_color,
                 ImVec2(static_cast<float>(m_viewportWidth), static_cast<float>(m_viewportHeight)), ImVec2(0.0f, 1.0f),
                 ImVec2(1.0f, 0.0f));
             ImGui::End();
@@ -1225,7 +1256,7 @@ private:
         {
             if (m_viewFramebuffers) {
                 ImGui::Begin("Glitter Framebuffers");
-                static Framebuffer* selectedFb = &m_framebuffers[MainFB];
+                static Framebuffer* selectedFb = &m_framebuffers[+Fb::Main];
                 if (ImGui::BeginCombo("Framebuffer", selectedFb->m_name)) {
                     for (auto& fb : m_framebuffers) {
                         bool isSelected = (selectedFb == &fb);
@@ -1298,17 +1329,6 @@ private:
     GLuint m_debugVAO {};
 
     GLuint m_ppfxProgram {};
-
-    enum FramebufferType {
-        MainFB,
-        PostProcessingFB,
-        CountFB,
-    };
-
-    Framebuffer m_framebuffers[CountFB] = {
-        Framebuffer {"Main FB"},
-        Framebuffer {"Post-Processing FB"},
-    };
 
     struct DebugVertex {
         float x, y, z;
