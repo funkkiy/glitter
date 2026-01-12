@@ -1,5 +1,6 @@
 #include "glitter/Config.h"
 #include "glitter/ImGuiConfig.h"
+#include "glitter/gfx/Framebuffer.h"
 #include "glitter/gfx/LinearAllocator.h"
 #include "glitter/gfx/VAO.h"
 #include "glitter/systems/Camera.h"
@@ -68,38 +69,6 @@ struct MeshVertex {
     float x, y, z;
     float u, v;
     float nx, ny, nz;
-};
-
-enum class Fb : std::uint8_t {
-    Main,
-    Ppfx,
-    Debug,
-    Count,
-};
-
-constexpr std::size_t operator+(Fb type) { return static_cast<std::size_t>(type); }
-
-struct Framebuffer {
-    const char* m_name;
-    std::optional<GLuint> m_fbo;
-    GLuint m_color;
-    GLuint m_depth;
-
-    Framebuffer()
-        : m_name("Unnamed FBO")
-        , m_fbo(std::nullopt)
-        , m_color(0)
-        , m_depth(0)
-    {
-    }
-
-    Framebuffer(const char* name)
-        : m_name(name)
-        , m_fbo(std::nullopt)
-        , m_color(0)
-        , m_depth(0)
-    {
-    }
 };
 
 [[nodiscard]] std::optional<GLuint> CreateShader(GLenum type, const char* src)
@@ -228,53 +197,13 @@ public:
     }
 
 private:
-    std::array<Framebuffer, +Fb::Count> m_framebuffers {
+    std::array<Gfx::Framebuffer, +Gfx::FramebufferType::Count> m_framebuffers {
         {
-         Framebuffer("Main FBO"),
-         Framebuffer("Post Processing FBO"),
-         Framebuffer("Debug FBO"),
+         Gfx::Framebuffer("Main FBO"),
+         Gfx::Framebuffer("Post Processing FBO"),
+         Gfx::Framebuffer("Debug FBO"),
          }
     };
-
-    void CreateFramebuffer(Framebuffer& fb, GLsizei width, GLsizei height)
-    {
-        // Create new FBO.
-        if (!fb.m_fbo) {
-            GLuint fbo = 0;
-            glCreateFramebuffers(1, &fbo);
-            fb.m_fbo = fbo;
-        }
-
-        // Create the color texture used with the FBO.
-        GLuint fboColor = 0;
-        glCreateTextures(GL_TEXTURE_2D, 1, &fboColor);
-        glTextureStorage2D(fboColor, 1, GL_RGBA8, width, height);
-        glObjectLabel(GL_TEXTURE, fboColor, -1, std::format("{} Texture", fb.m_name).c_str());
-
-        // Create the depth renderbuffer (note: can't be sampled) used with the FBO.
-        GLuint fboDepth = 0;
-        glCreateRenderbuffers(1, &fboDepth);
-        glNamedRenderbufferStorage(fboDepth, GL_DEPTH_COMPONENT24, width, height);
-        glObjectLabel(GL_RENDERBUFFER, fboDepth, -1, std::format("{} Depth Renderbuffer", fb.m_name).c_str());
-
-        // Attach the textures to the FBO.
-        glNamedFramebufferTexture(*fb.m_fbo, GL_COLOR_ATTACHMENT0, fboColor, 0);
-        glNamedFramebufferRenderbuffer(*fb.m_fbo, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, fboDepth);
-
-        fb.m_color = fboColor;
-        fb.m_depth = fboDepth;
-    }
-
-    void UpdateFramebuffer(Framebuffer& fb, GLsizei width, GLsizei height)
-    {
-        GLuint oldColor = fb.m_color;
-        GLuint oldDepth = fb.m_depth;
-
-        CreateFramebuffer(fb, width, height);
-
-        glDeleteTextures(1, &oldColor);
-        glDeleteRenderbuffers(1, &oldDepth);
-    }
 
     enum class [[nodiscard]] InitializeResult : std::uint8_t {
         Ok,
@@ -1013,7 +942,7 @@ private:
         {
             GL_DEBUG_SCOPE("Main FB Draw");
 
-            glBindFramebuffer(GL_FRAMEBUFFER, *m_framebuffers[+Fb::Main].m_fbo);
+            glBindFramebuffer(GL_FRAMEBUFFER, *m_framebuffers[+Gfx::FramebufferType::Main].m_fbo);
 
             // The FBO needs its own independent clear.
             glEnable(GL_DEPTH_TEST);
@@ -1043,7 +972,7 @@ private:
         {
             GL_DEBUG_SCOPE("Post-Processing");
 
-            glBindFramebuffer(GL_FRAMEBUFFER, *m_framebuffers[+Fb::Ppfx].m_fbo);
+            glBindFramebuffer(GL_FRAMEBUFFER, *m_framebuffers[+Gfx::FramebufferType::Ppfx].m_fbo);
 
             glDisable(GL_DEPTH_TEST);
             glDepthMask(GL_FALSE);
@@ -1053,7 +982,7 @@ private:
 
             // uniform layout(location = 0) sampler2D u_ColorTexture;
             // uniform layout(location = 1) float u_Gamma;
-            glBindTextureUnit(0, m_framebuffers[+Fb::Main].m_color);
+            glBindTextureUnit(0, m_framebuffers[+Gfx::FramebufferType::Main].m_color);
             glUniform1f(1, m_sceneGamma);
 
             glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -1065,11 +994,15 @@ private:
         {
             GL_DEBUG_SCOPE("Debug");
 
-            glBindFramebuffer(GL_FRAMEBUFFER, *m_framebuffers[+Fb::Debug].m_fbo);
+            glBindFramebuffer(GL_FRAMEBUFFER, *m_framebuffers[+Gfx::FramebufferType::Debug].m_fbo);
 
-            glBlitNamedFramebuffer(*m_framebuffers[+Fb::Ppfx].m_fbo, *m_framebuffers[+Fb::Debug].m_fbo, 0, 0, m_viewportWidth,
+            glBlitNamedFramebuffer(*m_framebuffers[+Gfx::FramebufferType::Ppfx].m_fbo,
+                *m_framebuffers[+Gfx::FramebufferType::Debug].m_fbo, 0, 0,
+                m_viewportWidth,
                 m_viewportHeight, 0, 0, m_viewportWidth, m_viewportHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-            glBlitNamedFramebuffer(*m_framebuffers[+Fb::Main].m_fbo, *m_framebuffers[+Fb::Debug].m_fbo, 0, 0, m_viewportWidth,
+            glBlitNamedFramebuffer(*m_framebuffers[+Gfx::FramebufferType::Main].m_fbo,
+                *m_framebuffers[+Gfx::FramebufferType::Debug].m_fbo, 0, 0,
+                m_viewportWidth,
                 m_viewportHeight, 0, 0, m_viewportWidth, m_viewportHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 
             if (m_debugLines && !m_debugData.m_debugLines.empty()) {
@@ -1204,7 +1137,7 @@ private:
                 glViewport(0, 0, m_viewportWidth, m_viewportHeight);
             }
 
-            ImGui::Image(m_framebuffers[+Fb::Debug].m_color,
+            ImGui::Image(m_framebuffers[+Gfx::FramebufferType::Debug].m_color,
                 ImVec2(static_cast<float>(m_viewportWidth), static_cast<float>(m_viewportHeight)), ImVec2(0.0f, 1.0f),
                 ImVec2(1.0f, 0.0f));
             ImGui::End();
@@ -1256,7 +1189,7 @@ private:
         {
             if (m_viewFramebuffers) {
                 ImGui::Begin("Glitter Framebuffers");
-                static Framebuffer* selectedFb = &m_framebuffers[+Fb::Main];
+                static Gfx::Framebuffer* selectedFb = &m_framebuffers[+Gfx::FramebufferType::Main];
                 if (ImGui::BeginCombo("Framebuffer", selectedFb->m_name)) {
                     for (auto& fb : m_framebuffers) {
                         bool isSelected = (selectedFb == &fb);
