@@ -472,7 +472,7 @@ private:
         }
         m_debugProgram = debugProgram;
 
-        m_debugVAO = Glitter::Gfx::CreateVAO("Debug VAO",
+        m_debugVAO = Gfx::CreateVAO("Debug VAO",
             {
                 {.m_size = 3, .m_type = GL_FLOAT, .m_offset = offsetof(DebugVertex, x)},
         });
@@ -1398,7 +1398,7 @@ private:
     glm::mat4 m_currentView {};
     glm::mat4 m_currentProjection {};
 
-    Glitter::Gfx::Camera m_currentCamera {glm::vec3()};
+    Gfx::Camera m_currentCamera {glm::vec3()};
 
     struct CommonData {
         glm::mat4 m_view;
