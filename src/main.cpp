@@ -431,10 +431,21 @@ private:
         }
         m_debugProgram = debugProgram;
 
-        m_debugVAO = Gfx::CreateVAO("Debug VAO",
-            {
-                {.m_size = 3, .m_type = GL_FLOAT, .m_offset = offsetof(DebugVertex, x)},
-        });
+        {
+            m_debugVAO = Gfx::CreateVAO("Debug VAO",
+                {
+                    {.m_size = 3, .m_type = GL_FLOAT, .m_offset = offsetof(DebugVertex, x)},
+            });
+
+            GLuint debugVBO = 0;
+            glCreateBuffers(1, &debugVBO);
+            glObjectLabel(GL_BUFFER, debugVBO, -1, "Debug VBO");
+
+            // Attach the VBO to the VAO.
+            glVertexArrayVertexBuffer(m_debugVAO, 0, debugVBO, 0, sizeof(DebugVertex));
+
+            m_debugVBO = debugVBO;
+        }
 
         // Create the Main shaders and program.
         GLuint mainVS = CreateShaderFromPath(GL_VERTEX_SHADER, "shaders/MainVS.glsl").value_or(0);
@@ -1027,15 +1038,10 @@ private:
                 glUseProgram(m_debugProgram);
                 glBindVertexArray(m_debugVAO);
 
-                // Create VBO.
-                GLuint vbo = 0;
-                glCreateBuffers(1, &vbo);
-                glNamedBufferStorage(vbo, static_cast<GLsizeiptr>(sizeof(DebugVertex) * m_debugData.m_debugLines.size()),
-                    m_debugData.m_debugLines.data(), 0);
-                glObjectLabel(GL_BUFFER, vbo, -1, "Debug VBO");
-
-                // Attach the VBO to the VAO.
-                glVertexArrayVertexBuffer(m_debugVAO, 0, vbo, 0, sizeof(DebugVertex));
+                // Update VBO.
+                glNamedBufferData(m_debugVBO, static_cast<GLsizeiptr>(sizeof(DebugVertex) * m_debugData.m_debugLines.size()),
+                    m_debugData.m_debugLines.data(), GL_STREAM_DRAW);
+                glVertexArrayVertexBuffer(m_debugVAO, 0, m_debugVBO, 0, sizeof(DebugVertex));
 
                 // Bind the Common UBO data into the first slot of the UBO.
                 glBindBufferRange(GL_UNIFORM_BUFFER, 0, m_mainUBO, 0, sizeof(CommonData));
@@ -1228,6 +1234,7 @@ private:
 
         glDeleteProgram(m_debugProgram);
         glDeleteBuffers(1, &m_debugVAO);
+        glDeleteBuffers(1, &m_debugVBO);
 
         glDeleteProgram(m_ppfxProgram);
 
@@ -1251,6 +1258,7 @@ private:
 
     GLuint m_debugProgram {};
     GLuint m_debugVAO {};
+    GLuint m_debugVBO {};
 
     GLuint m_ppfxProgram {};
 
